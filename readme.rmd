@@ -1,0 +1,21 @@
+project_root/
+├── main.py
+├── config/
+│   ├── dk_config.json
+│   ├── fd_config.json
+├── data/
+│   ├── dk/
+│   │   ├── projections.csv
+│   │   ├── ownership.csv
+│   └── fd/
+│       ├── projections.csv
+│       ├── ownership.csv
+├── src/
+│   ├── config_loader.py
+│   ├── data_manager.py
+│   ├── optimizer/
+│   │   ├── base_optimizer.py
+│   │   ├── dk_optimizer.py
+│   │   ├── fd_optimizer.py
+│   └── output_manager.py
+
