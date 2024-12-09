@@ -44,7 +44,7 @@ class Optimizer:
         lineups = Lineups()
         selected_lineups = []  # Track generated lineups
 
-        # Set static constraints (salary, position, etc.)
+        # Set constraints using ConstraintManager
         constraint_manager = ConstraintManager(
             self.site, self.problem, self.players, self.lp_variables, self.config
         )
@@ -52,39 +52,40 @@ class Optimizer:
 
         # Loop to generate `num_lineups` lineups
         for i in range(self.num_lineups):
-            # Apply randomness to player projections
+            # Step 1: Generate random projections for all players
+            random_projections = {}
             for player in self.players:
                 for position in player.position:
-                    # Update the objective dynamically with randomness
-                    random_proj = np.random.normal(
+                    random_projections[(player, position)] = np.random.normal(
                         player.fpts, player.stddev * self.config["randomness_amount"] / 100
                     )
-                    self.problem += (
-                        random_proj * self.lp_variables[(player, position)],
-                        f"Randomized_Projection_{player.name}_{position}_{i}"
-                    )
 
-            # Solve the problem
+            # Step 2: Update the objective function
+            self.problem.setObjective(
+                lpSum(
+                    random_projections[(player, position)] * self.lp_variables[(player, position)]
+                    for player in self.players
+                    for position in player.position
+                )
+            )
+
+            # Step 3: Solve the problem
             try:
                 self.problem.solve(plp.PULP_CBC_CMD(msg=0))
             except plp.PulpSolverError:
                 print(
-                    "Infeasibility reached - only generated {} lineups out of {}. Continuing.".format(
-                        len(lineups), self.num_lineups
-                    )
+                    f"Infeasibility reached - only generated {len(lineups)} lineups out of {self.num_lineups}. Continuing."
                 )
                 break
 
             # Check for infeasibility
             if plp.LpStatus[self.problem.status] != "Optimal":
                 print(
-                    "Infeasibility reached - only generated {} lineups out of {}. Continuing.".format(
-                        len(lineups), self.num_lineups
-                    )
+                    f"Infeasibility reached - only generated {len(lineups)} lineups out of {self.num_lineups}. Continuing."
                 )
                 break
 
-            # Extract the lineup from the solved variables
+            # Step 4: Extract the lineup from the solved variables
             selected_vars = [
                 key for key, var in self.lp_variables.items() if var.varValue == 1
             ]
@@ -94,7 +95,7 @@ class Optimizer:
             lineups.add_lineup(lineup)
             selected_lineups.append(lineup)  # Track this lineup
 
-            # Add a uniqueness constraint for this lineup
+            # Step 5: Add a uniqueness constraint for this lineup
             player_keys_to_exclude = [
                 self.lp_variables[(player, position)] for player, position in lineup
             ]

@@ -23,8 +23,8 @@ def main():
     data_manager.players = [player for player in players if not (player.ownership in [0, None] and player.id in [0, None])]
 
     # Initialize the optimizer
-    num_lineups = 500  # Example number of lineups
-    num_uniques = 2   # Example minimum number of unique players between lineups
+    num_lineups = 150  # Example number of lineups
+    num_uniques = 3   # Example minimum number of unique players between lineups
     optimizer = Optimizer(site, data_manager.players, num_lineups, num_uniques, data_manager.config)
 
     lineups = optimizer.run()

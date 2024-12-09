@@ -17,10 +17,10 @@
     "matchup_at_least": {},
     "team_limits": {},
     "custom_correlations": {},
-    "global_team_limit": 6,
-    "projection_minimum": 10,
-    "randomness_amount": 45,
-    "min_lineup_salary": 48000,
+    "global_team_limit": 4,
+    "projection_minimum": 15,
+    "randomness_amount": 30,
+    "min_lineup_salary": 49500,
     "minutes_min": 20,
 	"player_combination_limits": {
     "pairs": [
