@@ -1,8 +1,8 @@
 {
-    "projection_path": "projections.csv",
-    "player_path": "player_ids.csv",
-    "ownership_path": "ownership.csv",
-    "boom_bust_path": "boom_bust.csv",
+    "projection_path": "data/dk/projections.csv",
+    "player_path": "data/dk/player_ids.csv",
+    "ownership_path": "data/dk/ownership.csv",
+    "boom_bust_path": "data/dk/boom_bust.csv",
     "late_swap_path": "live_lineups.csv",
     "contest_structure_path": "contest_structure.csv",
     "at_most": {

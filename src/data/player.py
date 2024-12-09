@@ -2,7 +2,7 @@ class Player:
     def __init__(self, name, team, position, salary, fpts, minutes):
         self.name = name
         self.team = team
-        self.positions = position
+        self.position = position
         self.salary = salary
         self.fpts = fpts
         self.minutes = minutes

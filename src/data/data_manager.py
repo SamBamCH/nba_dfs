@@ -1,40 +1,45 @@
 import os
-import json
 import csv
 from data.player import Player
+from utils.config import load_config, get_project_root
 
 
 class DataManager:
-    def __init__(self, config_path, site):
-        self.config_path = config_path
+    def __init__(self, site):
         self.site = site
-        self.config = self._load_config()
+        self.config = load_config(site)
         self.players = []
 
-    def _load_config(self):
-        with open(self.config_path, encoding="utf-8-sig") as file:
-            return json.load(file)
+    def _resolve_path(self, relative_path):
+        """
+        Resolve a relative path to an absolute path based on the project root.
+        :param relative_path: The relative path from the config file.
+        :return: The absolute path.
+        """
+        return os.path.join(get_project_root(), relative_path)
 
     def load_player_data(self):
-        self._load_projections(self.config["projection_path"])
-        self._load_boom_bust(self.config["boom_bust_path"])
-        self._load_ownership(self.config["ownership_path"])
-        self._load_player_ids(self.config["player_path"])
+        """
+        Load all player data from projections, ownership, and boom-bust files.
+        """
+        self._load_projections(self._resolve_path(self.config["projection_path"]))
+        self._load_boom_bust(self._resolve_path(self.config["boom_bust_path"]))
+        self._load_ownership(self._resolve_path(self.config["ownership_path"]))
+        self._load_player_ids(self._resolve_path(self.config["player_path"]))
 
     def _load_projections(self, path):
         with open(path, encoding="utf-8-sig") as file:
             reader = csv.DictReader(file)
             for row in reader:
-                fpts = float(row["fpts"])
+                fpts = float(row["Fpts"])
                 if fpts >= self.config["projection_minimum"]:
                     player = Player(
-                        name=row["name"].strip(),
-                        team=row["team"],
-                        position=row["position"].split("/"),
-                        salary=int(row["salary"].replace(",", "")),
+                        name=row["Name"].strip(),
+                        team=row["Team"],
+                        position=row["Position"].split("/"),
+                        salary=int(row["Salary"].replace(",", "")),
                         fpts=fpts,
-                        minutes=float(row["minutes"]),
-                        stddev=float(row["stddev"]),
+                        minutes=float(row["Minutes"])
                     )
                     self.players.append(player)
 
@@ -47,6 +52,7 @@ class DataManager:
                         player.ceiling = float(row["Ceiling"])
                         player.boom_pct = float(row["Boom%"])
                         player.bust_pct = float(row["Bust%"])
+                        player.stddev = float(row["Std Dev"])
                         break
 
     def _load_ownership(self, path):
@@ -54,8 +60,8 @@ class DataManager:
             reader = csv.DictReader(file)
             for row in reader:
                 for player in self.players:
-                    if player.name == row["name"].strip() and player.team == row["team"]:
-                        player.ownership = float(row["ownership %"])
+                    if player.name == row["Name"].strip() and player.team == row["Team"]:
+                        player.ownership = float(row["Ownership %"])
                         break
 
     def _load_player_ids(self, path):
