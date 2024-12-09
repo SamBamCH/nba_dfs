@@ -634,14 +634,38 @@ class Optimizer:
                     "Objective",
                 )
 
-    def set_ownership_limits(self, ownership_limits):
-        # Store calculated ownership limits for next run
-        self.ownership_limits = ownership_limits
+    def calculate_ownership_sum(self, lineup):
+        """
+        Calculate the ownership sum for a single lineup.
+        """
+        return sum(player.ownership for player in lineup)
 
-    def calculate_ownership_limits(self, lineups):
-        # Implement logic to derive ownership constraints from lineups
-        # Return a dictionary of ownership limits
-        return {}
+    def calculate_ownership_sums(self, lineups):
+        """
+        Calculate ownership sums for all lineups.
+        """
+        return [self.calculate_ownership_sum(lineup) for lineup in lineups]
+
+    def find_ownership_threshold(self, ownership_sums, percentile):
+        """
+        Find the ownership sum threshold based on the specified percentile.
+        """
+        return np.percentile(ownership_sums, percentile)
+
+    def calculate_ownership_limits(self, lineups, ownership_percentile=90):
+        """
+        Calculate ownership limits based on the ownership sums of the given lineups.
+        """
+        ownership_sums = self.calculate_ownership_sums(lineups)
+        ownership_sum_threshold = self.find_ownership_threshold(ownership_sums, ownership_percentile)
+        print(f"Calculated Ownership Sum Threshold ({ownership_percentile} percentile): {ownership_sum_threshold}")
+        return ownership_sum_threshold
+
+    def set_ownership_limits(self, ownership_limits):
+        """
+        Set ownership limits for the optimizer.
+        """
+        self.ownership_limits = ownership_limits
 
     def output(self):
         # Logic from original code unchanged
