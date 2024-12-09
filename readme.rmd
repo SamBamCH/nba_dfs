@@ -1,21 +1,40 @@
-project_root/
-├── main.py
-├── config/
-│   ├── dk_config.json
-│   ├── fd_config.json
-├── data/
+project/
+├── src/
+│   ├── __init__.py
+│   ├── main.py                   # Main entry point for the application
+│   ├── optimizer/
+│   │   ├── __init__.py
+│   │   ├── optimizer.py          # Contains the Optimizer class
+│   │   ├── constraints.py        # Handles constraint logic for Optimizer
+│   │   ├── objective.py          # Defines the objective function for optimization
+│   ├── data/
+│   │   ├── __init__.py
+│   │   ├── data_manager.py       # Manages data loading and preprocessing
+│   │   ├── player.py             # Player class definition
+│   ├── lineups/
+│   │   ├── __init__.py
+│   │   ├── lineup.py             # Lineup and LineupPool classes
+│   │   ├── lineup_metrics.py     # Calculates lineup-related metrics
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── config.py             # Handles configuration management
+│   │   ├── helpers.py            # General-purpose utility functions
+├── data/                         # Raw data and configuration files
 │   ├── dk/
 │   │   ├── projections.csv
+│   │   ├── boom_bust.csv
 │   │   ├── ownership.csv
-│   └── fd/
-│       ├── projections.csv
-│       ├── ownership.csv
-├── src/
-│   ├── config_loader.py
-│   ├── data_manager.py
-│   ├── optimizer/
-│   │   ├── base_optimizer.py
-│   │   ├── dk_optimizer.py
-│   │   ├── fd_optimizer.py
-│   └── output_manager.py
+│   │   ├── player_ids.csv
+│   ├── config/
+│   │   ├── dk_config.json
+│   │   ├── fd_config.json
+├── tests/                        # Unit and integration tests
+│   ├── __init__.py
+│   ├── test_optimizer.py         # Tests for the Optimizer class
+│   ├── test_lineups.py           # Tests for Lineup and LineupPool classes
+│   ├── test_data_manager.py      # Tests for the DataManager class
+│   ├── test_utils.py             # Tests for utility functions
+├── requirements.txt              # Dependencies for the project
+├── README.md                     # Documentation and instructions
+
 
