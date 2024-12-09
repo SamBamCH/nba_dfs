@@ -1,6 +1,8 @@
 from pulp import LpProblem, LpMaximize, LpVariable, lpSum
 from optimizer.constraints import ConstraintManager
 import numpy as np
+import pulp as plp
+from lineups.lineups import Lineups
 
 
 class Optimizer:
@@ -19,73 +21,88 @@ class Optimizer:
         self.num_uniques = num_uniques
         self.config = config
         self.problem = LpProblem("DFS_Optimization", LpMaximize)
-        self.lp_variables = {
-            player: {
-                pos: LpVariable(f"{player.name}_{pos}_{player.team}", cat="Binary")
-                for pos in player.position
-            }
-            for player in players
-        }
-        self.lineups = []
+        self.lp_variables = {}
+
+        # Create LP variables for each player and position
+        for player in players:
+            if not player.id:
+                print(f"Player {player.name} does not have an ID. Skipping.")
+                continue
+
+            for position in player.position:  # Assuming `player.position` is a list of positions
+                variable_name = f"{player.name}_{position}_{player.id}"
+                self.lp_variables[(player, position)] = plp.LpVariable(
+                    name=variable_name, cat=plp.LpBinary
+                )
 
     def run(self):
         """
         Run the optimization process to generate lineups.
-        :return: List of optimized lineups.
+        :return: Lineups instance containing optimized lineups.
         """
-        for _ in range(self.num_lineups):
-            # Reset problem for each lineup
-            self.problem = LpProblem("DFS_Optimization", LpMaximize)
+        # Create a Lineups instance
+        lineups = Lineups()
+        selected_lineups = []  # Track generated lineups
 
-            # Add constraints and objective
-            constraint_manager = ConstraintManager(
-                self.site, self.problem, self.players, self.lp_variables, self.config
+        # Set static constraints (salary, position, etc.)
+        constraint_manager = ConstraintManager(
+            self.site, self.problem, self.players, self.lp_variables, self.config
+        )
+        constraint_manager.add_all_constraints([], self.num_uniques)
+
+        # Loop to generate `num_lineups` lineups
+        for i in range(self.num_lineups):
+            # Apply randomness to player projections
+            for player in self.players:
+                for position in player.position:
+                    # Update the objective dynamically with randomness
+                    random_proj = np.random.normal(
+                        player.fpts, player.stddev * self.config["randomness_amount"] / 100
+                    )
+                    self.problem += (
+                        random_proj * self.lp_variables[(player, position)],
+                        f"Randomized_Projection_{player.name}_{position}_{i}"
+                    )
+
+            # Solve the problem
+            try:
+                self.problem.solve(plp.PULP_CBC_CMD(msg=0))
+            except plp.PulpSolverError:
+                print(
+                    "Infeasibility reached - only generated {} lineups out of {}. Continuing.".format(
+                        len(lineups), self.num_lineups
+                    )
+                )
+                break
+
+            # Check for infeasibility
+            if plp.LpStatus[self.problem.status] != "Optimal":
+                print(
+                    "Infeasibility reached - only generated {} lineups out of {}. Continuing.".format(
+                        len(lineups), self.num_lineups
+                    )
+                )
+                break
+
+            # Extract the lineup from the solved variables
+            selected_vars = [
+                key for key, var in self.lp_variables.items() if var.varValue == 1
+            ]
+            lineup = [(player, position) for player, position in selected_vars]
+
+            # Add the lineup to the Lineups object
+            lineups.add_lineup(lineup)
+            selected_lineups.append(lineup)  # Track this lineup
+
+            # Add a uniqueness constraint for this lineup
+            player_keys_to_exclude = [
+                self.lp_variables[(player, position)] for player, position in lineup
+            ]
+            self.problem += (
+                lpSum(player_keys_to_exclude) <= len(lineup) - self.num_uniques,
+                f"Uniqueness_Constraint_{i}"
             )
-            constraint_manager.add_all_constraints(
-                selected_lineups=self.lineups, num_uniques=self.num_uniques
-            )
-            self._set_objective()
 
-            # Solve the optimization problem
-            self.problem.solve()
+        self.problem.writeLP("debug_model.lp")
+        return lineups
 
-            # Extract selected lineup
-            lineup = self._extract_lineup()
-            if lineup:
-                self.lineups.append(lineup)
-            else:
-                break  # Stop if no valid lineup is found
-
-        return self.lineups
-
-    def _set_objective(self):
-        """
-        Set the objective function: Maximize fantasy points with randomness.
-        """
-        randomness = self.config.get("randomness", 0)
-        if randomness:
-            self.problem += lpSum(
-                np.random.normal(player.fpts, player.stddev * randomness / 100)
-                * self.lp_variables[player][pos]
-                for player in self.players
-                for pos in player.position
-            ), "Maximize FPTS with Randomness"
-        else:
-            self.problem += lpSum(
-                player.fpts * self.lp_variables[player][pos]
-                for player in self.players
-                for pos in player.position
-            ), "Maximize FPTS"
-
-    def _extract_lineup(self):
-        """
-        Extract a lineup from the solved LP problem.
-        :return: List of Player objects in the lineup.
-        """
-        lineup = []
-        for player, positions in self.lp_variables.items():
-            for pos, var in positions.items():
-                if var.varValue == 1:
-                    lineup.append(player)
-                    break  # Only include the player once
-        return lineup if lineup else None

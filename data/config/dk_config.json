@@ -19,7 +19,7 @@
     "custom_correlations": {},
     "global_team_limit": 6,
     "projection_minimum": 10,
-    "randomness": 45,
+    "randomness_amount": 45,
     "min_lineup_salary": 48000,
     "minutes_min": 20,
 	"player_combination_limits": {

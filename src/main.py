@@ -1,6 +1,7 @@
 import os
 from data.data_manager import DataManager
 from optimizer.optimizer import Optimizer
+from lineups.lineups import Lineups
 
 
 def main():
@@ -15,27 +16,21 @@ def main():
     except FileNotFoundError as e:
         print(f"Error: {e}")
         return
-
+    
     # Retrieve the players and config
     players = data_manager.players
-    config = data_manager.config
+
+    data_manager.players = [player for player in players if not (player.ownership in [0, None] and player.id in [0, None])]
 
     # Initialize the optimizer
-    num_lineups = 20  # Example number of lineups
-    num_uniques = 1   # Example minimum number of unique players between lineups
-    optimizer = Optimizer(site, players, num_lineups, num_uniques, config)
+    num_lineups = 500  # Example number of lineups
+    num_uniques = 2   # Example minimum number of unique players between lineups
+    optimizer = Optimizer(site, data_manager.players, num_lineups, num_uniques, data_manager.config)
 
-    # Run the optimization process
-    try:
-        optimized_lineups = optimizer.run()
-        print(f"Generated {len(optimized_lineups)} optimized lineups.")
-    except Exception as e:
-        print(f"Error during optimization: {e}")
-        return
+    lineups = optimizer.run()
+    lineups.export_to_csv("data/output/optimal_lineups.csv", site=optimizer.site)
 
-    # Output the optimized lineups
-    for i, lineup in enumerate(optimized_lineups, start=1):
-        print(f"Lineup {i}: {[player.name for player in lineup]}")
+
 
 
 if __name__ == "__main__":

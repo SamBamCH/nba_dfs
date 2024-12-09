@@ -33,10 +33,19 @@ class DataManager:
             for row in reader:
                 fpts = float(row["Fpts"])
                 if fpts >= self.config["projection_minimum"]:
+                    # Split positions and append G, F, UTIL for DraftKings
+                    positions = row["Position"].split("/")
+                    if self.site == "dk":
+                        if "PG" in positions or "SG" in positions:
+                            positions.append("G")
+                        if "SF" in positions or "PF" in positions:
+                            positions.append("F")
+                        positions.append("UTIL")
+
                     player = Player(
                         name=row["Name"].strip(),
                         team=row["Team"],
-                        position=row["Position"].split("/"),
+                        position=positions,
                         salary=int(row["Salary"].replace(",", "")),
                         fpts=fpts,
                         minutes=float(row["Minutes"])
