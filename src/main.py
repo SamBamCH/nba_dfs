@@ -17,26 +17,27 @@ def main():
     except FileNotFoundError as e:
         print(f"Error: {e}")
         return
-    
-    # Retrieve the players and config
-    players = data_manager.players
 
-    data_manager.players = [player for player in players if not (player.ownership in [0, None] and player.id in [0, None])]
+    # Filter out invalid players
+    players = [
+        player for player in data_manager.players
+        if player.ownership not in [0, None] and player.id not in [0, None]
+    ]
 
     # Initialize the optimizer
-    num_lineups = 150  # Example number of lineups
-    num_uniques = 3   # Example minimum number of unique players between lineups
-    optimizer = Optimizer(site, data_manager.players, num_lineups, num_uniques, data_manager.config)
+    num_lineups = 10  # Number of lineups to generate
+    num_uniques = 1   # Minimum unique players between lineups
+    optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 
+    # Generate lineups
     lineups = optimizer.run()
 
+    # Calculate and display player exposure
     exposure_df = calculate_exposure(lineups.lineups, players)
-
-# Display the sorted DataFrame
     print(exposure_df)
+
+    # Export the lineups
     lineups.export_to_csv("data/output/optimal_lineups.csv", site=optimizer.site)
-
-
 
 
 if __name__ == "__main__":
