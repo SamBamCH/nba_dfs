@@ -37,73 +37,99 @@ class Optimizer:
 
     def run(self):
         """
-        Run the optimization process to generate lineups.
+        Iteratively build the lineup by solving for different objectives at each step.
         :return: Lineups instance containing optimized lineups.
         """
         # Create a Lineups instance
         lineups = Lineups()
-        selected_lineups = []  # Track generated lineups
+        selected_lineups = []  # Store final lineups
 
-        # Set constraints using ConstraintManager
-        constraint_manager = ConstraintManager(
-            self.site, self.problem, self.players, self.lp_variables, self.config
-        )
-        constraint_manager.add_all_constraints([], self.num_uniques)
-
-        # Loop to generate `num_lineups` lineups
         for i in range(self.num_lineups):
-            # Step 1: Generate random projections for all players
-            random_projections = {}
-            for player in self.players:
-                for position in player.position:
-                    random_projections[(player, position)] = np.random.normal(
-                        player.fpts, player.stddev * self.config["randomness_amount"] / 100
-                    )
+            self.problem = LpProblem(f"Lineup_{i}", LpMaximize)
+            locked_players = []
 
-            # Step 2: Update the objective function
+            # Initialize ConstraintManager
+            constraint_manager = ConstraintManager(
+                self.site, self.problem, self.players, self.lp_variables, self.config
+            )
+            constraint_manager.add_all_constraints(locked_players, self.num_uniques)
+
+            # Stage 1: Select 4 value players
             self.problem.setObjective(
                 lpSum(
-                    random_projections[(player, position)] * self.lp_variables[(player, position)]
+                    (player.fpts / player.salary) * self.lp_variables[(player, position)]
                     for player in self.players
                     for position in player.position
                 )
             )
+            self.problem.solve(plp.PULP_CBC_CMD(msg=0))
+            if self.problem.status != 1:
+                print(f"Failed to solve for value players in iteration {i}.")
+                continue
 
-            # Step 3: Solve the problem
-            try:
-                self.problem.solve(plp.PULP_CBC_CMD(msg=0))
-            except plp.PulpSolverError:
-                print(
-                    f"Infeasibility reached - only generated {len(lineups)} lineups out of {self.num_lineups}. Continuing."
+            # Lock top 4 value players
+            value_players = [
+                (player, position)
+                for (player, position), var in self.lp_variables.items()
+                if var.varValue == 1
+            ][:4]
+            for player, position in value_players:
+                self.problem += self.lp_variables[(player, position)] == 1
+                locked_players.append((player, position))
+
+            # Stage 2: Add the highest median projection player under an ownership threshold
+            self.problem.setObjective(
+                lpSum(
+                    player.fpts * self.lp_variables[(player, position)]
+                    for player in self.players
+                    for position in player.position
+                    if player.ownership < 0.1  # Ownership threshold
                 )
-                break
+            )
+            self.problem.solve(plp.PULP_CBC_CMD(msg=0))
+            if self.problem.status != 1:
+                print(f"Failed to solve for low-owned player in iteration {i}.")
+                continue
 
-            # Check for infeasibility
-            if plp.LpStatus[self.problem.status] != "Optimal":
-                print(
-                    f"Infeasibility reached - only generated {len(lineups)} lineups out of {self.num_lineups}. Continuing."
+            low_owned_player = [
+                (player, position)
+                for (player, position), var in self.lp_variables.items()
+                if var.varValue == 1
+            ][:1]  # Only one low-owned player
+            for player, position in low_owned_player:
+                self.problem += self.lp_variables[(player, position)] == 1
+                locked_players.append((player, position))
+
+            # Stage 3: Fill the lineup with ceiling players
+            self.problem.setObjective(
+                lpSum(
+                    player.ceiling * self.lp_variables[(player, position)]
+                    for player in self.players
+                    for position in player.position
                 )
-                break
+            )
+            self.problem.solve(plp.PULP_CBC_CMD(msg=0))
+            if self.problem.status != 1:
+                print(f"Failed to solve for ceiling players in iteration {i}.")
+                continue
 
-            # Step 4: Extract the lineup from the solved variables
-            selected_vars = [
-                key for key, var in self.lp_variables.items() if var.varValue == 1
+            # Extract the final lineup
+            final_lineup = [
+                (player, position)
+                for (player, position), var in self.lp_variables.items()
+                if var.varValue == 1
             ]
-            lineup = [(player, position) for player, position in selected_vars]
+            lineups.add_lineup(final_lineup)
+            selected_lineups.append(final_lineup)
 
-            # Add the lineup to the Lineups object
-            lineups.add_lineup(lineup)
-            selected_lineups.append(lineup)  # Track this lineup
-
-            # Step 5: Add a uniqueness constraint for this lineup
+            # Add uniqueness constraint
             player_keys_to_exclude = [
-                self.lp_variables[(player, position)] for player, position in lineup
+                self.lp_variables[(player, position)] for player, position in final_lineup
             ]
             self.problem += (
-                lpSum(player_keys_to_exclude) <= len(lineup) - self.num_uniques,
+                lpSum(player_keys_to_exclude) <= len(final_lineup) - self.num_uniques,
                 f"Uniqueness_Constraint_{i}"
             )
 
-        self.problem.writeLP("debug_model.lp")
         return lineups
 

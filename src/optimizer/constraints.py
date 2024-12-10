@@ -143,6 +143,48 @@ class ConstraintManager:
             lpSum(self.lp_variables[(player, position)] for player, position in lineup) <= len(lineup) - num_uniques,
             overlap_constraint
         )
+    def add_value_objective(self):
+        """
+        Set the objective to maximize fantasy points per dollar for the first stage.
+        """
+        self.problem.setObjective(
+            lpSum(
+                (player.fpts / player.salary) * self.lp_variables[(player, position)]
+                for player in self.players
+                for position in player.position
+            )
+        )
+
+    def add_low_owned_high_median_constraint(self, ownership_threshold):
+        """
+        Add constraint to select the highest median projected player under a specified ownership threshold.
+        """
+        low_owned_players = [
+            (player, position)
+            for player in self.players
+            for position in player.position
+            if player.ownership < ownership_threshold
+        ]
+        self.problem.setObjective(
+            lpSum(
+                player.fpts * self.lp_variables[(player, position)]
+                for player, position in low_owned_players
+            )
+        )
+
+    def add_ceiling_objective(self):
+        """
+        Set the objective to maximize ceiling projections for the remaining slots.
+        """
+        self.problem.setObjective(
+            lpSum(
+                player.ceiling * self.lp_variables[(player, position)]
+                for player in self.players
+                for position in player.position
+            )
+        )
+
+
 
     def enforce_lineup_uniqueness(self, selected_lineups, num_uniques):
         """
