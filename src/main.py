@@ -2,6 +2,7 @@ import os
 from data.data_manager import DataManager
 from optimizer.optimizer import Optimizer
 from lineups.lineups import Lineups
+from lineups.lineup_metrics import calculate_exposure
 
 
 def main():
@@ -28,6 +29,11 @@ def main():
     optimizer = Optimizer(site, data_manager.players, num_lineups, num_uniques, data_manager.config)
 
     lineups = optimizer.run()
+
+    exposure_df = calculate_exposure(lineups.lineups, players)
+
+# Display the sorted DataFrame
+    print(exposure_df)
     lineups.export_to_csv("data/output/optimal_lineups.csv", site=optimizer.site)
 
 
