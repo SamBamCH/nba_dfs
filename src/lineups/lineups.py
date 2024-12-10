@@ -54,3 +54,6 @@ class Lineups:
                     f"{lineup_str},{salary},{round(fpts_p, 2)},{own_p},{own_s},{mins},{stddev}\n"
                 )
 
+    def __len__(self):
+        return len(self.lineups)
+
