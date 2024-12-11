@@ -25,15 +25,16 @@ class Optimizer:
 
     def run(self):
         """
-        Run the optimization process with a penalized objective function for ownership.
+        Run the optimization process with scaled metrics and penalized ownership.
         :return: Lineups instance containing optimized lineups.
         """
         lineups = Lineups()  # Object to store all generated lineups
         exclusion_constraints = []  # List to store uniqueness constraints
 
-        # Ownership weight and penalty function
-        ownership_weight = self.config.get("ownership_weight", 0.1)  # Adjust this to increase impact
-        penalty_function = lambda ownership: ownership ** 2  # Quadratic penalty
+        # Weights for each component in the objective function
+        ownership_weight = self.config.get("ownership_weight", 0.1)  # Relative to fpts
+        minutes_weight = self.config.get("minutes_weight", 0.5)  # Relative to fpts
+        boom_weight = self.config.get("boom_weight", 0.5)  # Relative to fpts
 
         for i in range(self.num_lineups):
             # Step 1: Reset the optimization problem
@@ -49,7 +50,7 @@ class Optimizer:
             for constraint in exclusion_constraints:
                 self.problem += constraint
 
-            # Step 2: Generate new random `fpts` values for all players
+            # Step 2: Generate random samples for `fpts`, `minutes`, `boom`, and `ownership`
             random_projections = {
                 (player, position): np.random.normal(
                     player.fpts, player.stddev * self.config["randomness_amount"] / 100
@@ -58,12 +59,35 @@ class Optimizer:
                 for position in player.position
             }
 
-            # Step 3: Set the penalized objective function
+            random_minutes = {
+                player: np.random.normal(player.minutes, player.std_minutes * self.config["randomness_amount"] / 100)
+                for player in self.players
+            }
+
+            random_boom = {
+                player: np.random.normal(player.boom_pct, player.std_boom_pct * self.config["randomness_amount"] / 100)
+                for player in self.players
+            }
+
+            random_ownership = {
+                player: np.random.normal(player.ownership, player.std_ownership * self.config["randomness_amount"] / 100)
+                for player in self.players
+            }
+
+            # Step 3: Calculate global max for scaling based on random samples
+            max_fpts = max(random_projections.values())
+            max_minutes = max(random_minutes.values())
+            max_boom = max(random_boom.values())
+            max_ownership = max(random_ownership.values())
+
+            # Step 4: Set the scaled and penalized objective function
             self.problem.setObjective(
                 lpSum(
                     (
-                        (1 - ownership_weight) * random_projections[(player, position)] +
-                        ownership_weight * (1 - player.ownership)
+                        ((1 - ownership_weight) * (random_projections[(player, position)] / max_fpts)) +
+                        (ownership_weight * (1 - random_ownership[player] / max_ownership)) +
+                        (minutes_weight * (random_minutes[player] / max_minutes)) +
+                        (boom_weight * (random_boom[player] / max_boom))
                     ) * self.lp_variables[(player, position)]
                     for player in self.players
                     for position in player.position
@@ -81,14 +105,14 @@ class Optimizer:
                 print(f"Infeasibility reached during optimization. Only {len(lineups.lineups)} lineups generated.")
                 break
 
-            # Step 4: Extract and save the final lineup
+            # Step 5: Extract and save the final lineup
             final_vars = [
                 key for key, var in self.lp_variables.items() if var.varValue == 1
             ]
             final_lineup = [(player, position) for player, position in final_vars]
             lineups.add_lineup(final_lineup)
 
-            # Step 5: Add exclusion constraint for uniqueness
+            # Step 6: Add exclusion constraint for uniqueness
             player_ids = [player.id for player, _ in final_vars]
             player_keys_to_exclude = [
                 (p, pos) for p in self.players if p.id in player_ids for pos in p.position
@@ -99,5 +123,9 @@ class Optimizer:
             exclusion_constraints.append(exclusion_constraint)
 
         return lineups
+
+
+
+
 
 
