@@ -24,8 +24,16 @@ class Optimizer:
                 )
 
     def run(self):
+        """
+        Run the optimization process with a penalized objective function for ownership.
+        :return: Lineups instance containing optimized lineups.
+        """
         lineups = Lineups()  # Object to store all generated lineups
         exclusion_constraints = []  # List to store uniqueness constraints
+
+        # Ownership weight and penalty function
+        ownership_weight = self.config.get("ownership_weight", 0.1)  # Adjust this to increase impact
+        penalty_function = lambda ownership: ownership ** 2  # Quadratic penalty
 
         for i in range(self.num_lineups):
             # Step 1: Reset the optimization problem
@@ -50,70 +58,37 @@ class Optimizer:
                 for position in player.position
             }
 
-            # Step 3: Phase 1 - Select 4 core players maximizing fpts/salary
+            # Step 3: Set the penalized objective function
             self.problem.setObjective(
                 lpSum(
-                    (random_projections[(player, position)] / player.salary) * self.lp_variables[(player, position)]
+                    (
+                        (1 - ownership_weight) * random_projections[(player, position)] +
+                        ownership_weight * (1 - player.ownership)
+                    ) * self.lp_variables[(player, position)]
                     for player in self.players
                     for position in player.position
                 )
             )
 
-            # Solve Phase 1
+            # Solve the problem
             try:
                 self.problem.solve(plp.GLPK(msg=0))
             except plp.PulpSolverError:
-                print(f"Infeasibility reached during Phase 1. Only {len(lineups.lineups)} lineups generated.")
+                print(f"Infeasibility reached during optimization. Only {len(lineups.lineups)} lineups generated.")
                 break
 
             if plp.LpStatus[self.problem.status] != "Optimal":
-                print(f"Infeasibility reached during Phase 1. Only {len(lineups.lineups)} lineups generated.")
+                print(f"Infeasibility reached during optimization. Only {len(lineups.lineups)} lineups generated.")
                 break
 
-            # Extract the top 4 core players
-            core_players = [
-                key for key, var in self.lp_variables.items() if var.varValue == 1
-            ][:4]
-
-            # Dynamically add a constraint to lock these core players for the current lineup
-            core_player_constraint = lpSum(
-                self.lp_variables[(player, position)] for player, position in core_players
-            ) == 4
-            self.problem += core_player_constraint
-
-            # Step 4: Phase 2 - Add the player with the highest ceiling
-            remaining_players = [player for player in self.players if player not in [cp[0] for cp in core_players]]
-            high_ceiling_player = max(remaining_players, key=lambda p: p.ceiling)
-            high_ceiling_constraint = lpSum(
-                self.lp_variables[(high_ceiling_player, position)] for position in high_ceiling_player.position
-            ) == 1
-            self.problem += high_ceiling_constraint
-
-            # Step 5: Phase 3 - Fill remaining slots maximizing fpts
-            self.problem.setObjective(
-                lpSum(random_projections[(player, position)] * self.lp_variables[(player, position)]
-                    for player in self.players for position in player.position)
-            )
-
-            # Solve Phase 3
-            try:
-                self.problem.solve(plp.GLPK(msg=0))
-            except plp.PulpSolverError:
-                print(f"Infeasibility reached during Phase 3. Only {len(lineups.lineups)} lineups generated.")
-                break
-
-            if plp.LpStatus[self.problem.status] != "Optimal":
-                print(f"Infeasibility reached during Phase 3. Only {len(lineups.lineups)} lineups generated.")
-                break
-
-            # Step 6: Extract and save the final lineup
+            # Step 4: Extract and save the final lineup
             final_vars = [
                 key for key, var in self.lp_variables.items() if var.varValue == 1
             ]
             final_lineup = [(player, position) for player, position in final_vars]
             lineups.add_lineup(final_lineup)
 
-            # Step 7: Add exclusion constraint for uniqueness
+            # Step 5: Add exclusion constraint for uniqueness
             player_ids = [player.id for player, _ in final_vars]
             player_keys_to_exclude = [
                 (p, pos) for p in self.players if p.id in player_ids for pos in p.position
@@ -124,7 +99,5 @@ class Optimizer:
             exclusion_constraints.append(exclusion_constraint)
 
         return lineups
-
-
 
 
