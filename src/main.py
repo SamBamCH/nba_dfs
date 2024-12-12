@@ -36,14 +36,14 @@ def main():
     optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 
     # Generate lineups
-    lineups = optimizer.run()
+    Lineups = optimizer.run()
 
     # Calculate and display player exposure
-    exposure_df = calculate_exposure(lineups.lineups, players)
+    exposure_df = calculate_exposure(Lineups.lineups, players)
     print(exposure_df)
 
     # Export the lineups
-    lineups.export_to_csv("data/output/optimal_lineups.csv", site=optimizer.site)
+    Lineups.export_to_csv("data/output/optimal_lineups.csv", site=optimizer.site)
 
 
 if __name__ == "__main__":

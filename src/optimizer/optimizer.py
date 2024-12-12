@@ -29,7 +29,7 @@ class Optimizer:
         Run the optimization process with scaled metrics and penalized exposure.
         :return: Lineups instance containing optimized lineups.
         """
-        lineups = Lineups()  # Object to store all generated lineups
+        Lineups = Lineups()  # Object to store all generated lineups
         exclusion_constraints = []  # List to store uniqueness constraints
 
         # Weights for each component in the objective function
@@ -93,11 +93,11 @@ class Optimizer:
             try:
                 self.problem.solve(plp.GLPK(msg=0))
             except plp.PulpSolverError:
-                print(f"Infeasibility reached during optimization. Only {len(lineups.lineups)} lineups generated.")
+                print(f"Infeasibility reached during optimization. Only {len(Lineups.lineups)} lineups generated.")
                 break
 
             if plp.LpStatus[self.problem.status] != "Optimal":
-                print(f"Infeasibility reached during optimization. Only {len(lineups.lineups)} lineups generated.")
+                print(f"Infeasibility reached during optimization. Only {len(Lineups.lineups)} lineups generated.")
                 break
 
             # Step 5: Extract and save the final lineup
@@ -105,7 +105,7 @@ class Optimizer:
                 key for key, var in self.lp_variables.items() if var.varValue == 1
             ]
             final_lineup = [(player, position) for player, position in final_vars]
-            lineups.add_lineup(final_lineup)
+            Lineups.add_lineup(final_lineup)
 
             # Step 6: Update player exposure
             for player, position in final_vars:
@@ -121,7 +121,7 @@ class Optimizer:
             ) <= len(final_vars) - self.num_uniques
             exclusion_constraints.append(exclusion_constraint)
 
-        return lineups
+        return Lineups
 
 
 
