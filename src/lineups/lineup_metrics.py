@@ -25,14 +25,16 @@ def calculate_exposure(lineups, players):
             "Name": player.name,
             "Team": player.team,
             "Salary": player.salary,
-            "FPTS": player.fpts,
+            "minutes": player.minutes,
             "ownership": player.ownership, 
-            "boom": player.boom_pct, 
-            "bust": player.bust_pct,
+            "Exposure (%)": exposure,
+            "leverage": exposure - player.ownership,
+            "FPTS": player.fpts,
             "value": player.fpts / player.salary * 1000,
             "STDDEV": player.stddev,
-            "variance score": player.stddev / player.fpts, 
-            "Exposure (%)": exposure
+            "variance score": player.stddev / player.fpts,
+            "boom": player.boom_pct, 
+            "bust": player.bust_pct
         })
 
     # Create and sort the DataFrame

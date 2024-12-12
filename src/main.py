@@ -31,8 +31,8 @@ def main():
     ]
 
     # Initialize the optimizer
-    num_lineups = 150  # Number of lineups to generate
-    num_uniques = 3  # Minimum unique players between lineups
+    num_lineups = 190  # Number of lineups to generate
+    num_uniques = 2  # Minimum unique players between lineups
     optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 
     # Generate lineups
@@ -48,3 +48,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#TODO: lateswap
+#TODO: add bust as a trade off in objective
+#TODO: name_change.py? 
+    ###what is the current process for handling missing players, or mismatches for names. Should store any errors in a way that we can know at the end. 
+
+#TODO:adjust output for lateswap. 

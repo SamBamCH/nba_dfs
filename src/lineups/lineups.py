@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Lineups:
     def __init__(self):
         self.lineups = []
@@ -20,13 +21,20 @@ class Lineups:
             order = ["PG", "PG", "SG", "SG", "SF", "SF", "PF", "PF", "C"]
             sorted_lineup = [None] * 9
 
-        for player, pos, _ in lineup:
+        for player, pos, player_id in lineup:
             order_idx = order.index(pos)
             if sorted_lineup[order_idx] is None:
-                sorted_lineup[order_idx] = (player, pos)
+                sorted_lineup[order_idx] = (player, pos, player_id)
             else:
-                sorted_lineup[order_idx + 1] = (player, pos)
-        return sorted_lineup
+                # Find the next available slot for this position
+                next_idx = order_idx + 1
+                while next_idx < len(sorted_lineup) and sorted_lineup[next_idx] is not None:
+                    next_idx += 1
+                if next_idx < len(sorted_lineup):
+                    sorted_lineup[next_idx] = (player, pos, player_id)
+
+        return [slot for slot in sorted_lineup if slot is not None]  # Remove None values
+
 
     def export_to_csv(self, file_path, site):
         """Export the lineups to a CSV file."""
@@ -39,21 +47,29 @@ class Lineups:
                 f.write(
                     "PG,PG,SG,SG,SF,SF,PF,PF,C,Salary,Fpts Proj,Own. Prod.,Own. Sum.,Minutes,StdDev\n"
                 )
-            for lineup in self.lineups:
-                salary = sum(player.salary for player, _, _ in lineup)
-                fpts_p = sum(player.fpts for player, _, _ in lineup)
-                own_p = np.prod([player.ownership / 100 for player, _, _ in lineup])
-                own_s = sum(player.ownership for player, _, _ in lineup)
-                mins = sum(player.minutes for player, _, _ in lineup)
-                stddev = sum(player.stddev for player, _, _ in lineup)
 
+            for lineup in self.lineups:
+                # Sort the lineup according to the site's position order
+                sorted_lineup = self.sort_lineup(lineup, site)
+
+                # Calculate aggregate stats
+                salary = sum(player.salary for player, _, _ in sorted_lineup)
+                fpts_p = sum(player.fpts for player, _, _ in sorted_lineup)
+                own_p = np.prod([player.ownership / 100 for player, _, _ in sorted_lineup])
+                own_s = sum(player.ownership for player, _, _ in sorted_lineup)
+                mins = sum(player.minutes for player, _, _ in sorted_lineup)
+                stddev = sum(player.stddev for player, _, _ in sorted_lineup)
+
+                # Create the lineup string
                 lineup_str = ",".join(
-                    [f"{player.name} ({player.id})" for player, _, _ in lineup]
+                    [f"{player.name} ({player.id})" for player, _, _ in sorted_lineup]
                 )
                 f.write(
                     f"{lineup_str},{salary},{round(fpts_p, 2)},{own_p},{own_s},{mins},{stddev}\n"
                 )
 
+
     def __len__(self):
         return len(self.lineups)
+
 

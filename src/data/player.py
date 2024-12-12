@@ -15,7 +15,7 @@ class Player:
         self.ownership = 0
         self.id = None
         self.std_minutes = self.minutes / 3
-        self.std_boom_pct = self.boom_pct / 5
+        self.std_boom_pct = self.ceiling / 5
         self.std_ownership = self.ownership / 8
 
     def __str__(self):

@@ -65,7 +65,7 @@ class Optimizer:
             }
 
             random_boom = {
-                player: np.random.normal(player.boom_pct, player.std_boom_pct * self.config["randomness_amount"] / 100)
+                player: np.random.normal(player.ceiling, player.std_boom_pct * self.config["randomness_amount"] / 100)
                 for player in self.players
             }
 
