@@ -27,12 +27,12 @@ def main():
     # Filter out invalid players
     players = [
         player for player in data_manager.players
-        if player.ownership not in [0, None] and player.id not in [0, None]
+        if player.ownership not in [0, None] and player.id not in [0, None] 
     ]
 
     # Initialize the optimizer
-    num_lineups = 190  # Number of lineups to generate
-    num_uniques = 2  # Minimum unique players between lineups
+    num_lineups = 115  # Number of lineups to generate
+    num_uniques = 1 # Minimum unique players between lineups
     optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 
     # Generate lineups
@@ -50,8 +50,9 @@ if __name__ == "__main__":
     main()
 
 #TODO: lateswap
-#TODO: add bust as a trade off in objective
 #TODO: name_change.py? 
     ###what is the current process for handling missing players, or mismatches for names. Should store any errors in a way that we can know at the end. 
 
 #TODO:adjust output for lateswap. 
+#TODO: modularize logic to be able to use with other sports, with a few additions
+#TODO: set min salary as a tight constraint and optimize for leverage? 

@@ -35,7 +35,7 @@ class Optimizer:
         ownership_weight = self.config.get("ownership_weight", 0.1)  # Relative to fpts
         minutes_weight = self.config.get("minutes_weight", 0.5)  # Relative to fpts
         boom_weight = self.config.get("boom_weight", 0.5)  # Relative to fpts
-
+        lambda_weight = self.config.get("ownership_lambda", 0)
         for i in range(self.num_lineups):
             # Step 1: Reset the optimization problem
             self.problem = LpProblem(f"NBA_DFS_Optimization_{i}", LpMaximize)
@@ -84,15 +84,15 @@ class Optimizer:
             self.problem.setObjective(
                 lpSum(
                     (
-                        ((1 - ownership_weight) * (random_projections[(player, position)] / max_fpts)) +
-                        (ownership_weight * (1 - random_ownership[player] / max_ownership)) +
-                        (minutes_weight * (random_minutes[player] / max_minutes)) +
-                        (boom_weight * (random_boom[player] / max_boom))
+                        random_projections[(player, position)] - 
+                        (2 * lambda_weight * random_ownership[player]) + 
+                        random_boom[player]
                     ) * self.lp_variables[(player, position)]
                     for player in self.players
                     for position in player.position
                 )
             )
+
 
             # Solve the problem
             try:

@@ -17,7 +17,7 @@
     "matchup_at_least": {},
     "team_limits": {},
     "custom_correlations": {},
-    "global_team_limit": 6,
+    "global_team_limit": 4,
     "projection_minimum": 15,
     "randomness_amount": 15,
     "min_lineup_salary": 49500,
@@ -28,7 +28,5 @@
     "trios": [
     ]
     },
-    "ownership_weight": 0.10,
-    "minutes_weight": 0.5,
-    "boom_weight": 0.5
+    "ownership_lambda": 0.1
 }
