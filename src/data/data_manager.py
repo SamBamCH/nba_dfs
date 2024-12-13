@@ -2,6 +2,7 @@ import os
 import csv
 from data.player import Player
 from utils.config import load_config, get_project_root
+from datetime import datetime
 
 
 class DataManager:
@@ -80,4 +81,14 @@ class DataManager:
                 for player in self.players:
                     if player.name == row["Name"].strip() and player.team == row["TeamAbbrev"]:
                         player.id = int(row["ID"])
+                        game_info = row["Game Info"]
+                        try:
+                            # Split Game Info to extract date and time, handle "ET"
+                            date_part, time_part, _ = game_info.split()[-3:]
+                            player.gametime = datetime.strptime(
+                                f"{date_part} {time_part}", "%m/%d/%Y %I:%M%p"
+                            )
+                        except ValueError as e:
+                            raise ValueError(f"Error parsing Game Info '{game_info}' for player {player.name}: {e}")
                         break
+
