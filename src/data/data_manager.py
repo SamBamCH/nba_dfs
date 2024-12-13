@@ -10,6 +10,10 @@ class DataManager:
         self.site = site
         self.config = load_config(site)
         self.players = []
+        self.rename_dict = {
+            "Nicolas Claxton": "Nic Claxton",
+            # ownership.csv: projections.csv
+        }
 
     def _resolve_path(self, relative_path):
         """
@@ -66,13 +70,22 @@ class DataManager:
                         break
 
     def _load_ownership(self, path):
+        # Load ownership file and check against players
         with open(path, encoding="utf-8-sig") as file:
             reader = csv.DictReader(file)
             for row in reader:
+                ownership_name = row["Name"].strip()
+                
+                # Check if the player's name is in the rename_dict
+                if ownership_name in self.rename_dict:
+                    ownership_name = self.rename_dict[ownership_name]  # Use the new name
+
+                # Match against players and update ownership
                 for player in self.players:
-                    if player.name == row["Name"].strip() and player.team == row["Team"]:
+                    if player.name == ownership_name and player.team == row["Team"]:
                         player.ownership = float(row["Ownership %"])
                         break
+
 
     def _load_player_ids(self, path):
         with open(path, encoding="utf-8-sig") as file:

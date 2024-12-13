@@ -24,10 +24,18 @@ def main():
         print(f"Error: {e}")
         return
 
-    # Filter out invalid players
+    # Filter out invalid players and capture removed players
+    removed_players = [
+        player for player in data_manager.players
+        if player.ownership in [0, None] or player.id in [0, None]
+    ]
+    print("Players removed before optimizer initialization:")
+    for player in removed_players:
+        print(f"Name: {player.name}, Ownership: {player.ownership}, ID: {player.id}")
+
     players = [
         player for player in data_manager.players
-        if player.ownership not in [0, None] and player.id not in [0, None] 
+        if player.ownership not in [0, None] and player.id not in [0, None]
     ]
 
     ###up to this point, the optimization process is the exact same, assuming that the projections, boom_bust, and player_ids are all the same format. 
@@ -51,13 +59,11 @@ def main():
 if __name__ == "__main__":
     main()
 
-#TODO: lateswap
-#TODO: name_change.py? 
-    ###what is the current process for handling missing players, or mismatches for names. Should store any errors in a way that we can know at the end. 
 
+#TODO: lateswap - test after lock to dial in lock constraint. need to check that the player.gametime matches the new and old format. 
 #TODO: modularize logic to be able to use with other sports, with a few additions
     ###wrangle constraints all into the constraints class. 
         ### could have different functions for different sports' constraints? i.e. add_{sport}_constraints()
 #TODO: NFL correlated samples for optimization. 
-#TODO: set min proj as a tight constraint and optimize for leverage? \
+#TODO: set min proj as a tight constraint and optimize for leverage? 
 #TODO: can add other factors to the count variables. i.e. variance score * count to make the more variant players penalized more quickly. 

@@ -190,6 +190,96 @@ class Optimizer:
             exclusion_constraints.append(exclusion_constraint)
 
         return lineups
+    
+
+    def late_swap(self, locked_lineups):
+        """
+        Perform late-swap optimization for provided locked lineups.
+        :param locked_lineups: List of locked lineups to adjust.
+        :return: Lineups instance containing adjusted lineups.
+        """
+        lineups = Lineups()  # Object to store all generated lineups
+
+        for lineup in locked_lineups:
+            # Reset the optimization problem
+            self.problem = LpProblem(f"NBA_Late_Swap", LpMaximize)
+
+            # Reinitialize constraints for the new problem
+            constraint_manager = ConstraintManager(
+                self.site, self.problem, self.players, self.lp_variables, self.config
+            )
+            constraint_manager.add_static_constraints()  # Add static constraints
+
+            # Identify locked players and add constraints
+            for player, position in lineup.items():
+                if player.is_locked:
+                    self.problem += self.lp_variables[(player, position)] == 1, f"Locked_{player.name}_{position}"
+
+            # Filter players who haven't locked yet based on game time
+            available_players = [
+                player for player in self.players
+                if not player.is_locked and player.gametime > datetime.datetime.now()
+            ]
+
+            # Generate random samples for `fpts`, `minutes`, `boom`, and `ownership`
+            random_projections = {
+                (player, position): np.random.normal(
+                    player.fpts, player.stddev * self.config["randomness_amount"] / 100
+                )
+                for player in available_players
+                for position in player.position
+            }
+
+            random_minutes = {
+                player: np.random.normal(player.minutes, player.std_minutes * self.config["randomness_amount"] / 100)
+                for player in available_players
+            }
+
+            random_boom = {
+                player: np.random.normal(player.ceiling, player.std_boom_pct * self.config["randomness_amount"] / 100)
+                for player in available_players
+            }
+
+            random_ownership = {
+                player: np.random.normal(player.ownership, player.std_ownership * self.config["randomness_amount"] / 100)
+                for player in available_players
+            }
+
+            # Calculate global max for scaling based on random samples
+            max_fpts = max(random_projections.values())
+            max_minutes = max(random_minutes.values())
+            max_boom = max(random_boom.values())
+            max_ownership = max(random_ownership.values())
+
+            # Create new objective function with only available players
+            self.problem.setObjective(
+                lpSum(
+                    (
+                        ((1 - self.config["ownership_weight"]) * (random_projections[(player, position)] / max_fpts)) +
+                        (self.config["ownership_weight"] * (1 - random_ownership[player] / max_ownership)) +
+                        (self.config["minutes_weight"] * (random_minutes[player] / max_minutes)) +
+                        (self.config["boom_weight"] * (random_boom[player] / max_boom))
+                    ) * self.lp_variables[(player, position)]
+                    for player in available_players
+                    for position in player.position
+                )
+            )
+
+            # Solve the problem and extract the lineup
+            try:
+                self.problem.solve(plp.GLPK(msg=0))
+            except plp.PulpSolverError:
+                print("Infeasibility reached during late-swap optimization.")
+                continue
+
+            if plp.LpStatus[self.problem.status] == "Optimal":
+                final_vars = [
+                    key for key, var in self.lp_variables.items() if var.varValue == 1
+                ]
+                final_lineup = [(player, position) for player, position in final_vars]
+                lineups.add_lineup(final_lineup)
+
+        return lineups
 
 
 
