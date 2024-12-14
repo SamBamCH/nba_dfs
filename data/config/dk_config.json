@@ -3,7 +3,7 @@
     "player_path": "data/dk/player_ids.csv",
     "ownership_path": "data/dk/ownership.csv",
     "boom_bust_path": "data/dk/boom_bust.csv",
-    "late_swap_path": "live_lineups.csv",
+    "late_swap_path": "data/dk/live_lineups.csv",
     "contest_structure_path": "contest_structure.csv",
     "at_most": {
         "1": [],
