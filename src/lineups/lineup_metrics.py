@@ -14,8 +14,10 @@ def calculate_exposure(lineups, players):
 
     # Count the occurrences of each player in the lineups
     for lineup in lineups:
-        for player, _, _ in lineup:
-            exposure_count[player.id] += 1
+        for player_tuple in lineup:
+            if isinstance(player_tuple[0], type(players[0])):  # Check if it's a Player object
+                player_id = player_tuple[2]  # Extract `player.id` from the tuple
+                exposure_count[player_id] += 1
 
     # Create a DataFrame with player data
     data = []
@@ -26,18 +28,19 @@ def calculate_exposure(lineups, players):
             "Team": player.team,
             "Salary": player.salary,
             "Exposure (%)": exposure,
-            "minutes": player.minutes,
-            "ownership": player.ownership, 
-            "leverage": exposure - player.ownership,
+            "Minutes": player.minutes,
+            "Ownership": player.ownership,
+            "Leverage": exposure - player.ownership,
             "FPTS": player.fpts,
-            "value": player.fpts / player.salary * 1000,
+            "Value": player.fpts / player.salary * 1000,
             "STDDEV": player.stddev,
-            "variance score": player.stddev / player.fpts,
-            "boom": player.boom_pct, 
-            "bust": player.bust_pct
+            "Variance Score": player.stddev / player.fpts,
+            "Boom": player.boom_pct,
+            "Bust": player.bust_pct,
         })
 
     # Create and sort the DataFrame
     df = pd.DataFrame(data)
     df.sort_values(by="Exposure (%)", ascending=False, inplace=True)
     return df
+
