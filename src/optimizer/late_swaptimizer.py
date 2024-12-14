@@ -4,6 +4,7 @@ import numpy as np
 from lineups.lineups import Lineups
 import pulp as plp
 import re
+import pandas as pd
 
 
 class LateSwaptimizer:
@@ -100,20 +101,37 @@ class LateSwaptimizer:
 
         return optimized_lineup
 
-    def run(self):
+    def run(self, output_csv_path):
         """
-        Loop through the input lineups and optimize each one.
-        :return: Lineups object containing all optimized lineups.
+        Loop through the input lineups, optimize each one, and write the optimized lineup 
+        to an output CSV file in the same format as the input.
+        :param output_csv_path: Path to save the output CSV file with optimized lineups.
         """
-        optimized_lineups = Lineups()
+        # Convert the input lineups into a DataFrame for easy manipulation
+        lineups_df = pd.DataFrame(self.lineups)
 
-        for lineup in self.lineups:
+        # Loop through each lineup and optimize it
+        for index, lineup in lineups_df.iterrows():
             print(f"Optimizing lineup for entry ID {lineup['entry_id']}...")
 
+            # Convert the current row to a dictionary
+            lineup_dict = lineup.to_dict()
+
             # Optimize the lineup with locked player constraints
-            optimized_lineup = self.optimize_single_lineup(lineup)
+            optimized_lineup = self.optimize_single_lineup(lineup_dict)
 
             if optimized_lineup:
-                optimized_lineups.add_lineup(optimized_lineup)
+                # Convert the optimized lineup into a readable format
+                optimized_lineup_dict = {
+                    position: f"{player.name} ({player.id})"
+                    for player, position in optimized_lineup
+                }
 
-        return optimized_lineups
+                # Update the DataFrame with optimized values
+                for position in ["PG", "SG", "SF", "PF", "C", "G", "F", "UTIL"]:
+                    lineups_df.at[index, position] = optimized_lineup_dict.get(position, lineup[position])
+
+        # Save the updated lineups to a CSV file
+        lineups_df.to_csv(output_csv_path, index=False)
+        print(f"Optimized lineups have been written to {output_csv_path}")
+

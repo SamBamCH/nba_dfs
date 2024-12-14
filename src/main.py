@@ -63,7 +63,7 @@ def main():
         data_manager.populate_ids_to_gametime()
         data_manager.load_player_lineups(data_manager.config['late_swap_path'])
         late_swap = LateSwaptimizer(site, players, data_manager.config, data_manager.lineups)
-        optimized_lineups = late_swap.run()
+        late_swap.run(output_csv_path="data/output/swapped_lineups.csv")
 
         # for lineup in data_manager.lineups:
         #     print(lineup)
