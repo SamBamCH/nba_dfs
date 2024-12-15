@@ -68,17 +68,66 @@ class LateSwaptimizer:
         )
         constraint_manager.add_static_constraints()
 
+        lambda_weight = self.config.get("ownership_lambda", 0)
+
+
         # Apply locked player constraints
         self.apply_locked_constraints(lineup)
 
+        random_projections = {
+            (player, position): np.random.normal(
+                player.fpts, player.stddev * self.config["randomness_amount"] / 100
+            )
+            for player in self.players
+            for position in player.position
+        }
+
+        random_boom = {
+            player: np.random.normal(player.ceiling, player.std_boom_pct * self.config["randomness_amount"] / 100)
+            for player in self.players
+        }
+
+        random_ownership = {
+            player: np.random.normal(player.ownership, player.std_ownership * self.config["randomness_amount"] / 100)
+            for player in self.players
+        }
+
+        # Step 3: Calculate global max for scaling based on random samples
+        max_fpts = max(random_projections.values(), default=1)  # Avoid division by zero
+        max_boom = max(random_boom.values(), default=1)
+        max_ownership = max(random_ownership.values(), default=1)
+        max_exposure = max(max(self.player_exposure.values(), default=0), 1)
+
+
+        # Step 4: Scale each variable to range [0, 1]
+        scaled_projections = {
+            key: value / max_fpts for key, value in random_projections.items()
+        }
+
+        scaled_boom = {
+            player: value / max_boom for player, value in random_boom.items()
+        }
+
+        scaled_ownership = {
+            player: value / max_ownership for player, value in random_ownership.items()
+        }
+
+        scaled_exposure = {
+            player: self.player_exposure[player] / max_exposure for player in self.players
+        }
+
         # Define the objective function
         self.problem.setObjective(
-            lpSum(
-                player.fpts * self.lp_variables[(player, position)]
-                for player in self.players
-                for position in player.position
+                lpSum(
+                    (
+                        scaled_projections[(player, position)] - 
+                        (lambda_weight * scaled_ownership[player]) + 
+                        scaled_boom[player]
+                    ) * self.lp_variables[(player, position)]
+                    for player in self.players
+                    for position in player.position
+                )
             )
-        )
 
         # Solve the optimization problem
         try:
