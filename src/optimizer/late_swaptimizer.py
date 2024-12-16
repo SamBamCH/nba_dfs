@@ -53,6 +53,52 @@ class LateSwaptimizer:
                 else:
                     print(f"Warning: Locked player ID {locked_player_id} not found.")
 
+    def adjust_roster_for_late_swap(self, lineup):
+        """
+        Adjusts a roster to optimize for late swap.
+        Ensures players with later game times are positioned in flex spots when possible.
+
+        :param lineup: List of tuples (player, position) representing the lineup.
+        :return: Adjusted lineup.
+        """
+        if self.site == "fd":
+            return lineup  # No late swap needed for FanDuel
+
+        sorted_lineup = list(lineup)
+
+        # Swap players in primary and flex positions based on game time
+        def swap_if_needed(primary_pos, flex_pos):
+            primary_player, primary_position = sorted_lineup[primary_pos]
+            flex_player, flex_position = sorted_lineup[flex_pos]
+
+            # Check if the primary player's game time is later than the flex player's
+            if (
+                primary_player.gametime > flex_player.gametime
+            ):
+                primary_positions = self.position_map[primary_pos]
+                flex_positions = self.position_map[flex_pos]
+
+                # Ensure both players are eligible for position swaps
+                if any(
+                    pos in primary_positions
+                    for pos in flex_player.position
+                ) and any(
+                    pos in flex_positions
+                    for pos in primary_player.position
+                ):
+                    # Perform the swap
+                    sorted_lineup[primary_pos], sorted_lineup[flex_pos] = (
+                        sorted_lineup[flex_pos],
+                        sorted_lineup[primary_pos],
+                    )
+
+        # Iterate over positions to check and apply swaps
+        for primary_pos in range(len(sorted_lineup)):
+            for flex_pos in range(primary_pos + 1, len(sorted_lineup)):
+                swap_if_needed(primary_pos, flex_pos)
+
+        return sorted_lineup
+
     def optimize_single_lineup(self, lineup):
         """
         Optimize a single lineup with the locked players treated as constraints.
@@ -96,8 +142,6 @@ class LateSwaptimizer:
         max_fpts = max(random_projections.values(), default=1)  # Avoid division by zero
         max_boom = max(random_boom.values(), default=1)
         max_ownership = max(random_ownership.values(), default=1)
-        max_exposure = max(max(self.player_exposure.values(), default=0), 1)
-
 
         # Step 4: Scale each variable to range [0, 1]
         scaled_projections = {
@@ -112,10 +156,6 @@ class LateSwaptimizer:
             player: value / max_ownership for player, value in random_ownership.items()
         }
 
-        scaled_exposure = {
-            player: self.player_exposure[player] / max_exposure for player in self.players
-        }
-
         # Define the objective function
         self.problem.setObjective(
                 lpSum(
@@ -128,7 +168,7 @@ class LateSwaptimizer:
                     for position in player.position
                 )
             )
-
+        self.problem.writeLP("problem.lp")
         # Solve the optimization problem
         try:
             self.problem.solve(plp.GLPK(msg=0))
@@ -147,8 +187,9 @@ class LateSwaptimizer:
             for (player, position), var in self.lp_variables.items()
             if var.varValue == 1
         ]
-
         return optimized_lineup
+
+        
 
     def run(self, output_csv_path):
         """
@@ -158,6 +199,7 @@ class LateSwaptimizer:
         """
         # Convert the input lineups into a DataFrame for easy manipulation
         lineups_df = pd.DataFrame(self.lineups)
+        lineups = Lineups()
 
         # Loop through each lineup and optimize it
         for index, lineup in lineups_df.iterrows():
@@ -166,8 +208,21 @@ class LateSwaptimizer:
             # Convert the current row to a dictionary
             lineup_dict = lineup.to_dict()
 
+            # Check if all players in the lineup are locked based on the 'is_locked' flags
+            locked_players = [
+                lineup_dict.get(f"{position}_is_locked", False) 
+                for position in ["PG", "SG", "SF", "PF", "C", "G", "F", "UTIL"]
+            ]
+            
+            # If all players are locked, skip this lineup and do nothing else
+            if all(locked_players):
+                print(f"All players are locked for lineup {lineup['entry_id']}. Skipping optimization.")
+                continue  # Skip this lineup and move to the next one
+
             # Optimize the lineup with locked player constraints
             optimized_lineup = self.optimize_single_lineup(lineup_dict)
+            optimized_lineups = self.adjust_roster_for_late_swap(optimized_lineup)
+            lineups.add_lineup(optimized_lineups)
 
             if optimized_lineup:
                 # Convert the optimized lineup into a readable format
@@ -183,4 +238,7 @@ class LateSwaptimizer:
         # Save the updated lineups to a CSV file
         lineups_df.to_csv(output_csv_path, index=False)
         print(f"Optimized lineups have been written to {output_csv_path}")
+        return lineups
+
+
 

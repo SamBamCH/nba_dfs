@@ -30,7 +30,7 @@ def main():
     # Filter out invalid players and capture removed players
     removed_players = [
         player for player in data_manager.players
-        if player.ownership in [0, None] or player.id in [0, None]
+        if player.id in [0, None]
     ]
     print("Players removed before optimizer initialization:")
     for player in removed_players:
@@ -38,14 +38,14 @@ def main():
 
     players = [
         player for player in data_manager.players
-        if player.ownership not in [0, None] and player.id not in [0, None]
+        if player.id not in [0, None]
     ]
 
     ### up to this point, the optimization process is the exact same, assuming that the projections, boom_bust, and player_ids are all the same format. 
 
     # Initialize the optimizer
     if process == 'main':
-        num_lineups = 115  # Number of lineups to generate
+        num_lineups = 150  # Number of lineups to generate
         num_uniques = 1 # Minimum unique players between lineups
         optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 
@@ -63,7 +63,10 @@ def main():
         data_manager.populate_ids_to_gametime()
         data_manager.load_player_lineups(data_manager.config['late_swap_path'])
         late_swap = LateSwaptimizer(site, players, data_manager.config, data_manager.lineups)
-        late_swap.run(output_csv_path="data/output/swapped_lineups.csv")
+        lineups = late_swap.run(output_csv_path="data/output/swapped_lineups.csv")
+
+        exposure_df = calculate_exposure(lineups.lineups, players)
+        print(exposure_df)
 
         # for lineup in data_manager.lineups:
         #     print(lineup)

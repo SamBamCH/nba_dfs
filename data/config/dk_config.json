@@ -28,6 +28,6 @@
     "trios": [
     ]
     },
-    "ownership_lambda": 0.15,
-    "exposure_penalty_weight": 0.25
+    "ownership_lambda": 0.08,
+    "exposure_penalty_weight": 5
 }

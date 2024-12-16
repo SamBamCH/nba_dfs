@@ -130,10 +130,11 @@ class DataManager:
         # Read projections into a dictionary
         with open(path, encoding="utf-8-sig") as file:
             reader = csv.DictReader(self.lower_first(file))
-            current_time = self.eastern.localize(
-                datetime(2024, 12, 13, 19, 30)  # Year, Month, Day, Hour, Minute
-            )   
-            # current_time = datetime.datetime(2023, 10, 24, 20, 0) # testing time, such that LAL/DEN is locked
+            current_time = datetime.now(pytz.timezone("US/Eastern"))
+
+            # current_time = self.eastern.localize(
+            #     datetime(2024, 12, 13, 19, 30)  # Year, Month, Day, Hour, Minute
+            # )   
             print(f"Current time (ET): {current_time}")
             print(f"current player ids and gametimes dict: {self.ids_to_gametime}")
             for row in reader:
