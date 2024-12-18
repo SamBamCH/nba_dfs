@@ -19,7 +19,8 @@ class DataManager:
         }
         self.lineups = []
         self.ids_to_gametime = {}
-        self.eastern = pytz.timezone("US/Eastern")
+        self.eastern = pytz.timezone("US/Eastern")  # Use Central Time
+
 
 
     def _resolve_path(self, relative_path):
@@ -31,15 +32,16 @@ class DataManager:
         return os.path.join(get_project_root(), relative_path)
     
     def populate_ids_to_gametime(self):
-        """
-        Populate the ids_to_gametime dictionary with timezone-aware datetimes.
-        """
         self.ids_to_gametime = {
-            player.id: self.eastern.localize(player.gametime)
+            str(player.id): self.eastern.localize(player.gametime)
+            if player.gametime.tzinfo is None else player.gametime
             for player in self.players
-            if hasattr(player, "id") and hasattr(player, "gametime") and player.id and player.gametime
+            if player.id and player.gametime
         }
         print(f"Populated ids_to_gametime with {len(self.ids_to_gametime)} entries.")
+
+
+
 
 
     
@@ -130,23 +132,30 @@ class DataManager:
         # Read projections into a dictionary
         with open(path, encoding="utf-8-sig") as file:
             reader = csv.DictReader(self.lower_first(file))
-            current_time = datetime.now(pytz.timezone("US/Eastern"))
+            current_time = self.eastern.localize(datetime.now())
 
-            # current_time = self.eastern.localize(
-            #     datetime(2024, 12, 13, 19, 30)  # Year, Month, Day, Hour, Minute
-            # )   
+            current_time = self.eastern.localize(
+                datetime(2024, 12, 16, 19, 25)  # Year, Month, Day, Hour, Minute
+            )   
             print(f"Current time (ET): {current_time}")
             print(f"current player ids and gametimes dict: {self.ids_to_gametime}")
             for row in reader:
                 if row["entry id"] != "" and self.site == "dk":
-                    PG_id = re.search(r"\((\d+)\)", row["pg"]).group(1)
-                    SG_id = re.search(r"\((\d+)\)", row["sg"]).group(1)
-                    SF_id = re.search(r"\((\d+)\)", row["sf"]).group(1)
-                    PF_id = re.search(r"\((\d+)\)", row["pf"]).group(1)
-                    C_id = re.search(r"\((\d+)\)", row["c"]).group(1)
-                    G_id = re.search(r"\((\d+)\)", row["g"]).group(1)
-                    F_id = re.search(r"\((\d+)\)", row["f"]).group(1)
-                    UTIL_id = re.search(r"\((\d+)\)", row["util"]).group(1)
+                    PG_id = str(re.search(r"\((\d+)\)", row["pg"]).group(1))
+                    SG_id = str(re.search(r"\((\d+)\)", row["sg"]).group(1))
+                    SF_id = str(re.search(r"\((\d+)\)", row["sf"]).group(1))
+                    PF_id = str(re.search(r"\((\d+)\)", row["pf"]).group(1))
+                    C_id = str(re.search(r"\((\d+)\)", row["c"]).group(1))
+                    G_id = str(re.search(r"\((\d+)\)", row["g"]).group(1))
+                    F_id = str(re.search(r"\((\d+)\)", row["f"]).group(1))
+                    UTIL_id = str(re.search(r"\((\d+)\)", row["util"]).group(1))
+                    if PG_id not in self.ids_to_gametime:
+                        print(f"PG ID {PG_id} not found in ids_to_gametime.")
+                    else:
+                        print(f"PG ID {PG_id}: Current time {current_time} vs. Gametime {self.ids_to_gametime[PG_id]}")
+
+                    pg_is_locked = current_time >= self.ids_to_gametime[PG_id]
+                    print(f"pg_is_locked bool: {pg_is_locked}")
                     self.lineups.append(
                         {
                             "entry_id": row["entry id"],

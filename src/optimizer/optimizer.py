@@ -16,7 +16,16 @@ class Optimizer:
         self.lp_variables = {}
         self.player_exposure = {player: 0 for player in players}  # Initialize exposure tracker
 
-        self.position_map = {i: ["G", "F", "C", "UTIL"] for i in range(len(players))}
+        self.position_map = {
+            0: ["PG"],
+            1: ["SG"],
+            2: ["SF"],
+            3: ["PF"],
+            4: ["C"],
+            5: ["PG", "SG"],
+            6: ["SF", "PF"],
+            7: ["PG", "SG", "SF", "PF", "C"],
+        }
 
         # Create LP variables for each player and position
         for player in players:
@@ -29,7 +38,7 @@ class Optimizer:
     def adjust_roster_for_late_swap(self, lineup):
         """
         Adjusts a roster to optimize for late swap.
-        Ensures players with later game times are positioned in flex spots when possible.
+        Ensures players with earlier game times are positioned in restrictive slots when possible.
 
         :param lineup: List of tuples (player, position) representing the lineup.
         :return: Adjusted lineup.
@@ -37,27 +46,24 @@ class Optimizer:
         if self.site == "fd":
             return lineup  # No late swap needed for FanDuel
 
-        sorted_lineup = list(lineup)
+        sorted_lineup = list(lineup)  # Copy lineup for sorting
 
         # Swap players in primary and flex positions based on game time
         def swap_if_needed(primary_pos, flex_pos):
             primary_player, primary_position = sorted_lineup[primary_pos]
             flex_player, flex_position = sorted_lineup[flex_pos]
 
-            # Check if the primary player's game time is later than the flex player's
-            if (
-                primary_player.gametime > flex_player.gametime
-            ):
+            # print(f"primary_player.gametime = {primary_player.gametime}, {primary_player.name} vs. flex_player.gametime = {flex_player.gametime}, {flex_player.name}")
+
+            # Only swap if the primary player's game time is later than the flex player's
+            if primary_player.gametime > flex_player.gametime:
                 primary_positions = self.position_map[primary_pos]
                 flex_positions = self.position_map[flex_pos]
 
-                # Ensure both players are eligible for position swaps
-                if any(
-                    pos in primary_positions
-                    for pos in flex_player.position
-                ) and any(
-                    pos in flex_positions
-                    for pos in primary_player.position
+                # Check if positions are compatible for swapping
+                if (
+                    any(pos in primary_positions for pos in flex_player.position) and
+                    any(pos in flex_positions for pos in primary_player.position)
                 ):
                     # Perform the swap
                     sorted_lineup[primary_pos], sorted_lineup[flex_pos] = (
@@ -65,12 +71,16 @@ class Optimizer:
                         sorted_lineup[primary_pos],
                     )
 
-        # Iterate over positions to check and apply swaps
-        for primary_pos in range(len(sorted_lineup)):
+        # Iterate over the lineup positions to apply swaps
+        for primary_pos in self.position_map.keys():
             for flex_pos in range(primary_pos + 1, len(sorted_lineup)):
-                swap_if_needed(primary_pos, flex_pos)
+                # Ensure flex_pos exists in position_map
+                if flex_pos in self.position_map:
+                    swap_if_needed(primary_pos, flex_pos)
 
         return sorted_lineup
+
+
 
 
     def run(self):
@@ -81,9 +91,15 @@ class Optimizer:
         lineups = Lineups()  # Object to store all generated lineups
         exclusion_constraints = []  # List to store uniqueness constraints
 
-        # Weights for each component in the objective function
-        lambda_weight = self.config.get("ownership_lambda", 0)
-        exposure_penalty_weight = self.config.get("exposure_penalty_weight", 0.01)  # Weight for exposure penalty
+        # Load weights and parameters from config
+        weights = self.config.get("weights", {"proj": 1, "own": 0.0, "ceil": 0.0})
+        max_exposure_impact = self.config.get("exposure_penalty_max_impact", 0.00)
+        fpts_randomness = self.config.get("fpts_randomness_amount", 10) / 100
+        ceil_randomness = self.config.get("ceil_randomness_amount", 10) / 100
+        own_randomness = self.config.get("own_randomness_amount", 10) / 100
+
+        exposure_penalty_weight = max_exposure_impact / self.num_lineups
+
 
         for i in range(self.num_lineups):
             # Step 1: Reset the optimization problem
@@ -100,65 +116,40 @@ class Optimizer:
                 self.problem += constraint
 
             # Step 2: Generate random samples for `fpts`, `boom`, and `ownership`
-            random_projections = {
-                (player, position): np.random.normal(
-                    player.fpts, player.stddev * self.config["randomness_amount"] / 100
-                )
-                for player in self.players
-                for position in player.position
-            }
+            fpts_random = {player: np.random.normal(player.fpts, player.stddev * fpts_randomness) for player in self.players}
+            ceil_random = {player: np.random.normal(player.ceiling, player.std_boom_pct * ceil_randomness) for player in self.players}
+            own_random = {player: np.random.normal(player.ownership, player.std_ownership * own_randomness) for player in self.players}
 
-            random_boom = {
-                player: np.random.normal(player.ceiling, player.std_boom_pct * self.config["randomness_amount"] / 100)
-                for player in self.players
-            }
+            # Step 3: Scaling stats to [0, 1]
+            max_fpts = max(fpts_random.values(), default=1)
+            max_ceil = max(ceil_random.values(), default=1)
+            max_own = max(own_random.values(), default=1)
 
-            random_ownership = {
-                player: np.random.normal(player.ownership, player.std_ownership * self.config["randomness_amount"] / 100)
-                for player in self.players
-            }
+            scaled_fpts = {player: val / max_fpts for player, val in fpts_random.items()}
+            scaled_ceil = {player: val / max_ceil for player, val in ceil_random.items()}
+            scaled_own = {player: val / max_own for player, val in own_random.items()}
 
-            # Step 3: Calculate global max for scaling based on random samples
-            max_fpts = max(random_projections.values(), default=1)  # Avoid division by zero
-            max_boom = max(random_boom.values(), default=1)
-            max_ownership = max(random_ownership.values(), default=1)
-            max_exposure = max(max(self.player_exposure.values(), default=0), 1)
-
-
-            # Step 4: Scale each variable to range [0, 1]
-            scaled_projections = {
-                key: value / max_fpts for key, value in random_projections.items()
-            }
-
-            scaled_boom = {
-                player: value / max_boom for player, value in random_boom.items()
-            }
-
-            scaled_ownership = {
-                player: value / max_ownership for player, value in random_ownership.items()
-            }
-
-            scaled_exposure = {
-                player: self.player_exposure[player] / max_exposure for player in self.players
-            }
 
             # Step 5: Set the scaled and penalized objective function
+            # Step 5: Set the scaled and penalized objective function
             self.problem.setObjective(
-                lpSum(
+                    lpSum(
                     (
-                        scaled_projections[(player, position)] - 
-                        (lambda_weight * scaled_ownership[player]) + 
-                        scaled_boom[player] - 
-                        (exposure_penalty_weight * scaled_exposure[player])
+                        weights["proj"] * scaled_fpts[player]
+                        + weights["ceil"] * scaled_ceil[player]
+                        + weights["own"] * scaled_own[player]
+                        - exposure_penalty_weight * self.player_exposure[player]
                     ) * self.lp_variables[(player, position)]
                     for player in self.players
                     for position in player.position
                 )
             )
 
+
             # Solve the problem
             try:
                 self.problem.solve(plp.GLPK(msg=0))
+                self.problem.writeLP(f'problem.lp')
             except plp.PulpSolverError:
                 print(f"Infeasibility reached during optimization. Only {len(lineups.lineups)} lineups generated.")
                 break
@@ -177,7 +168,7 @@ class Optimizer:
 
             # Step 7: Update player exposure
             for player, position in final_vars:
-                self.player_exposure[player] += 2 * player.variance_score
+                self.player_exposure[player] += 1
 
             # Step 8: Add exclusion constraint for uniqueness
             player_ids = [player.id for player, _ in final_vars]

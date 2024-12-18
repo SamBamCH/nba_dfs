@@ -15,7 +15,7 @@ def main():
     pd.set_option('display.max_colwidth', None)
     # Initialize DataManager for the desired site (e.g., 'dk')
     site = "dk"  # Or "fd" depending on the use case
-    process = 'swap'
+    process = 'main   '
 
     data_manager = DataManager(site)
 
@@ -44,8 +44,17 @@ def main():
     ### up to this point, the optimization process is the exact same, assuming that the projections, boom_bust, and player_ids are all the same format. 
 
     # Initialize the optimizer
-    if process == 'main':
-        num_lineups = 150  # Number of lineups to generate
+    if process == 'swap':
+        data_manager.populate_ids_to_gametime()
+        data_manager.load_player_lineups(data_manager.config['late_swap_path'])
+        late_swap = LateSwaptimizer(site, players, data_manager.config, data_manager.lineups)
+        lineups = late_swap.run(output_csv_path="data/output/swapped_lineups.csv")
+
+        exposure_df = calculate_exposure(lineups.lineups, players)
+        print(exposure_df)
+
+    else :
+        num_lineups = 1  # Number of lineups to generate
         num_uniques = 1 # Minimum unique players between lineups
         optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 
@@ -59,19 +68,6 @@ def main():
         # Export the lineups
         lineups.export_to_csv("data/output/optimal_lineups.csv", site=optimizer.site)
 
-    else :
-        data_manager.populate_ids_to_gametime()
-        data_manager.load_player_lineups(data_manager.config['late_swap_path'])
-        late_swap = LateSwaptimizer(site, players, data_manager.config, data_manager.lineups)
-        lineups = late_swap.run(output_csv_path="data/output/swapped_lineups.csv")
-
-        exposure_df = calculate_exposure(lineups.lineups, players)
-        print(exposure_df)
-
-        # for lineup in data_manager.lineups:
-        #     print(lineup)
-            ### {'entry_id': '4561617468', 'contest_id': '171700955', 'contest_name': 'DFS Hero - Friday Night Hoops by Momar89', 'PG': 'Vasilije Micic (37001127)', 'SG': 'Brandon Miller (37000948)', 'SF': 'Justin Champagnie (37001198) (LOCKED)', 'PF': 'Miles Bridges (37001074)', 'C': 'Jalen Smith (37001372)', 'G': 'Kevin Porter Jr. (37001233)', 'F': 'Bilal Coulibaly (37001115) (LOCKED)', 'UTIL': 'Nikola Jokic (37000929)', 'PG_is_locked': False, 'SG_is_locked': False, 'SF_is_locked': True, 'PF_is_locked': False, 'C_is_locked': False, 'G_is_locked': False, 'F_is_locked': True, 'UTIL_is_locked': False}
-
 
 if __name__ == "__main__":
     main()
@@ -81,6 +77,4 @@ if __name__ == "__main__":
 #TODO: modularize logic to be able to use with other sports, with a few additions
     ###wrangle constraints all into the constraints class. 
         ### could have different functions for different sports' constraints? i.e. add_{sport}_constraints()
-#TODO: NFL correlated samples for optimization. 
 #TODO: set min proj as a tight constraint and optimize for leverage? 
-#TODO: can add other factors to the count variables. i.e. variance score * count to make the more variant players penalized more quickly. 

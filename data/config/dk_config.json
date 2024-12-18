@@ -17,9 +17,8 @@
     "matchup_at_least": {},
     "team_limits": {},
     "custom_correlations": {},
-    "global_team_limit": 4,
+    "global_team_limit": 3,
     "projection_minimum": 15,
-    "randomness_amount": 15,
     "min_lineup_salary": 49500,
     "minutes_min": 20,
 	"player_combination_limits": {
@@ -28,6 +27,15 @@
     "trios": [
     ]
     },
-    "ownership_lambda": 0.08,
-    "exposure_penalty_weight": 5
+    "weights": {
+    "proj": 1,
+    "own": -0.1,
+    "ceil": 2
+    },
+    "exposure_penalty_max_impact": 0.5,
+    "fpts_randomness_amount": 15,
+    "ceil_randomness_amount": 30,
+    "own_randomness_amount": 10,
+    "randomness_amount": 10
+
 }

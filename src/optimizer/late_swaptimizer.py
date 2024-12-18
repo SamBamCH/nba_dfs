@@ -30,6 +30,7 @@ class LateSwaptimizer:
         Add constraints for locked players in the lineup.
         :param lineup: Dictionary representing a single lineup.
         """
+        print(f"optimizing lineup: {lineup}")
         for position, locked_key in [
             ("PG", "PG_is_locked"),
             ("SG", "SG_is_locked"),
@@ -50,10 +51,11 @@ class LateSwaptimizer:
                         self.lp_variables[(locked_player, position)] == 1,
                         f"{position}_locked_constraint_{locked_player_id}",
                     )
+                    print(f"rule added: {position}_locked_constraint_{locked_player_id}")
                 else:
                     print(f"Warning: Locked player ID {locked_player_id} not found.")
 
-    def adjust_roster_for_late_swap(self, lineup):
+    def adjust_roster_for_late_swap(self, lineup): #TODO: fix this logic. It's not swapping players correctly. 
         """
         Adjusts a roster to optimize for late swap.
         Ensures players with later game times are positioned in flex spots when possible.
@@ -224,7 +226,7 @@ class LateSwaptimizer:
             optimized_lineups = self.adjust_roster_for_late_swap(optimized_lineup)
             lineups.add_lineup(optimized_lineups)
 
-            if optimized_lineup:
+            if optimized_lineups:
                 # Convert the optimized lineup into a readable format
                 optimized_lineup_dict = {
                     position: f"{player.name} ({player.id})"
