@@ -75,82 +75,95 @@ class Optimizer:
 
     def run(self):
         """
-        Run the optimization process with scaled metrics and penalized exposure.
+        Run the optimization process in two stages:
+        1. Extract the baseline fpts and ownership from the first lineup.
+        2. Use these baseline values to set constraints and maximize ceiling with added randomness.
         :return: Lineups instance containing optimized lineups.
         """
         lineups = Lineups()  # Object to store all generated lineups
         exclusion_constraints = []  # List to store uniqueness constraints
 
-        # Weights for each component in the objective function
-        lambda_weight = self.config.get("ownership_lambda", 0)
-        exposure_penalty_weight = self.config.get("exposure_penalty_weight", 0.01)  # Weight for exposure penalty
+        # Weights and baseline values
+        baseline_fpts = None
+        baseline_ownership = None
+        ownership_buffer = self.config.get("ownership_buffer", 0.05)  # Example: 5% buffer
+        randomness_factor = self.config.get("randomness_amount", 10) / 100  # Example: 10% randomness
 
+        # Stage 1: Generate the initial lineup to determine baseline values
+        self.problem = LpProblem("Stage1_NBA_DFS_Optimization", LpMaximize)
+
+        constraint_manager = ConstraintManager(
+            self.site, self.problem, self.players, self.lp_variables, self.config
+        )
+        constraint_manager.add_static_constraints()
+
+        # Objective: Maximize fpts for the initial lineup
+        self.problem.setObjective(
+            lpSum(
+                player.fpts * self.lp_variables[(player, position)]
+                for player in self.players
+                for position in player.position
+            )
+        )
+
+        # Solve the initial problem
+        try:
+            self.problem.solve(plp.GLPK(msg=0))
+        except plp.PulpSolverError:
+            print("Infeasibility during Stage 1 optimization.")
+            return lineups
+
+        if plp.LpStatus[self.problem.status] != "Optimal":
+            print("No optimal solution found during Stage 1 optimization.")
+            return lineups
+
+        # Extract the first lineup and calculate baseline values
+        final_vars = [
+            key for key, var in self.lp_variables.items() if var.varValue == 1
+        ]
+        final_lineup = [(player, position) for player, position in final_vars]
+
+        baseline_fpts = sum(player.fpts for player, _ in final_lineup)
+        baseline_ownership = sum(player.ownership for player, _ in final_lineup)
+        max_ownership = (1-ownership_buffer) * baseline_ownership
+        min_fpts = self.config.get("fpts_buffer", 0.95) * baseline_fpts
+
+        print(f"Baseline FPTS: {baseline_fpts}, Baseline Ownership: {baseline_ownership}, max_ownership: {max_ownership}, min_fpts: {min_fpts}")
+
+        # Stage 2: Optimize subsequent lineups with added randomness
         for i in range(self.num_lineups):
-            # Step 1: Reset the optimization problem
-            self.problem = LpProblem(f"NBA_DFS_Optimization_{i}", LpMaximize)
+            if i % 10 == 0: 
+                print(i)
+            self.problem = LpProblem(f"Stage2_NBA_DFS_Optimization_{i}", LpMaximize)
 
             # Reinitialize constraints for the new problem
             constraint_manager = ConstraintManager(
                 self.site, self.problem, self.players, self.lp_variables, self.config
             )
-            constraint_manager.add_static_constraints()  # Add static constraints
+            constraint_manager.add_static_constraints()
+            constraint_manager.add_optional_constraints(
+                max_ownership=(1 - ownership_buffer) * baseline_ownership,
+                min_fpts=self.config.get("fpts_buffer", 0.95) * baseline_fpts,  # Allow a small buffer for flexibility
+            )
 
-            # Reapply all exclusion constraints from previous iterations
+            # Reapply exclusion constraints for uniqueness
             for constraint in exclusion_constraints:
                 self.problem += constraint
 
-            # Step 2: Generate random samples for `fpts`, `boom`, and `ownership`
-            random_projections = {
-                (player, position): np.random.normal(
-                    player.fpts, player.stddev * self.config["randomness_amount"] / 100
-                )
-                for player in self.players
-                for position in player.position
-            }
-
-            random_boom = {
-                player: np.random.normal(player.ceiling, player.std_boom_pct * self.config["randomness_amount"] / 100)
+            # Add randomness to ceiling values
+            random_ceiling = {
+                player: np.random.normal(player.ceiling, player.stddev * randomness_factor)
                 for player in self.players
             }
 
-            random_ownership = {
-                player: np.random.normal(player.ownership, player.std_ownership * self.config["randomness_amount"] / 100)
-                for player in self.players
-            }
+            # Scale randomized ceiling values
+            max_ceiling = max(random_ceiling.values(), default=1)  # Avoid division by zero
+            scaled_random_ceiling = {player: value / max_ceiling for player, value in random_ceiling.items()}
 
-            # Step 3: Calculate global max for scaling based on random samples
-            max_fpts = max(random_projections.values(), default=1)  # Avoid division by zero
-            max_boom = max(random_boom.values(), default=1)
-            max_ownership = max(random_ownership.values(), default=1)
-            max_exposure = max(max(self.player_exposure.values(), default=0), 1)
-
-
-            # Step 4: Scale each variable to range [0, 1]
-            scaled_projections = {
-                key: value / max_fpts for key, value in random_projections.items()
-            }
-
-            scaled_boom = {
-                player: value / max_boom for player, value in random_boom.items()
-            }
-
-            scaled_ownership = {
-                player: value / max_ownership for player, value in random_ownership.items()
-            }
-
-            scaled_exposure = {
-                player: self.player_exposure[player] / max_exposure for player in self.players
-            }
-
-            # Step 5: Set the scaled and penalized objective function
+            # Objective: Maximize randomized ceiling
             self.problem.setObjective(
                 lpSum(
-                    (
-                        scaled_projections[(player, position)] - 
-                        (lambda_weight * scaled_ownership[player]) + 
-                        scaled_boom[player] - 
-                        (exposure_penalty_weight * scaled_exposure[player])
-                    ) * self.lp_variables[(player, position)]
+                    scaled_random_ceiling[player] * self.lp_variables[(player, position)]
                     for player in self.players
                     for position in player.position
                 )
@@ -160,27 +173,22 @@ class Optimizer:
             try:
                 self.problem.solve(plp.GLPK(msg=0))
             except plp.PulpSolverError:
-                print(f"Infeasibility reached during optimization. Only {len(lineups.lineups)} lineups generated.")
+                print(f"Infeasibility during Stage 2 optimization for lineup {i}.")
                 break
 
             if plp.LpStatus[self.problem.status] != "Optimal":
-                print(f"Infeasibility reached during optimization. Only {len(lineups.lineups)} lineups generated.")
+                print(f"No optimal solution for lineup {i} in Stage 2.")
                 break
 
-            # Step 6: Extract and save the final lineup
+            # Extract the lineup and save it
             final_vars = [
                 key for key, var in self.lp_variables.items() if var.varValue == 1
             ]
             final_lineup = [(player, position) for player, position in final_vars]
-            final_lineup = self.adjust_roster_for_late_swap(final_lineup)
             lineups.add_lineup(final_lineup)
 
-            # Step 7: Update player exposure
-            for player, position in final_vars:
-                self.player_exposure[player] += 2 * player.variance_score
-
-            # Step 8: Add exclusion constraint for uniqueness
-            player_ids = [player.id for player, _ in final_vars]
+            # Add exclusion constraint to prevent exact duplicate lineups
+            player_ids = [player.id for player, _ in final_lineup]
             player_keys_to_exclude = [
                 (p, pos) for p in self.players if p.id in player_ids for pos in p.position
             ]
@@ -190,6 +198,8 @@ class Optimizer:
             exclusion_constraints.append(exclusion_constraint)
 
         return lineups
+
+
     
 
     

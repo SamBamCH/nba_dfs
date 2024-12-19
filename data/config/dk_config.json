@@ -19,7 +19,7 @@
     "custom_correlations": {},
     "global_team_limit": 4,
     "projection_minimum": 15,
-    "randomness_amount": 15,
+    "randomness_amount": 30,
     "min_lineup_salary": 49500,
     "minutes_min": 20,
 	"player_combination_limits": {
@@ -28,6 +28,6 @@
     "trios": [
     ]
     },
-    "ownership_lambda": 0.08,
-    "exposure_penalty_weight": 5
+    "ownership_buffer": 0.07,
+    "fpts_buffer": 0.97
 }

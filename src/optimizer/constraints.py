@@ -97,3 +97,26 @@ class ConstraintManager:
         This is used for looping constraints(i.e. exposure caps, uniqueness, etc.)
         '''
         pass
+
+    def add_optional_constraints(self, max_ownership=None, min_fpts=None):
+        """
+        Add optional constraints such as ownership maximum and FPTS minimum.
+        :param max_ownership: Maximum allowable cumulative ownership.
+        :param min_fpts: Minimum required cumulative fpts.
+        """
+        if max_ownership is not None:
+            lineup_ownership = lpSum(
+                player.ownership * self.lp_variables[(player, position)]
+                for player in self.players
+                for position in player.position
+            )
+            self.problem += lineup_ownership <= max_ownership, "Max_Ownership"
+
+        if min_fpts is not None:
+            lineup_fpts = lpSum(
+                player.fpts * self.lp_variables[(player, position)]
+                for player in self.players
+                for position in player.position
+            )
+            self.problem += lineup_fpts >= min_fpts, "Min_FPTS"
+

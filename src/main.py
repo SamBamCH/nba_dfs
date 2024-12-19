@@ -15,7 +15,7 @@ def main():
     pd.set_option('display.max_colwidth', None)
     # Initialize DataManager for the desired site (e.g., 'dk')
     site = "dk"  # Or "fd" depending on the use case
-    process = 'swap'
+    process = 'main'
 
     data_manager = DataManager(site)
 
