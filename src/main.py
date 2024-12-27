@@ -15,7 +15,7 @@ def main():
     pd.set_option('display.max_colwidth', None)
     # Initialize DataManager for the desired site (e.g., 'dk')
     site = "dk"  # Or "fd" depending on the use case
-    process = 'main'
+    process = 'swap'
 
     data_manager = DataManager(site)
 
@@ -38,14 +38,14 @@ def main():
 
     players = [
         player for player in data_manager.players
-        if player.id not in [0, None]
+        if player.fpts > data_manager.config.get("projection_minimum")
     ]
 
     ### up to this point, the optimization process is the exact same, assuming that the projections, boom_bust, and player_ids are all the same format. 
 
     # Initialize the optimizer
     if process == 'main':
-        num_lineups = 150  # Number of lineups to generate
+        num_lineups = 1 # Number of lineups to generate
         num_uniques = 1 # Minimum unique players between lineups
         optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 
@@ -57,13 +57,13 @@ def main():
         print(exposure_df)
 
         # Export the lineups
-        lineups.export_to_csv("data/output/optimal_lineups.csv", site=optimizer.site)
+        lineups.export_to_csv("C:/Users/samba/nba_dfs/data/output/optimal_lineups.csv", site=optimizer.site)
 
     else :
         data_manager.populate_ids_to_gametime()
         data_manager.load_player_lineups(data_manager.config['late_swap_path'])
         late_swap = LateSwaptimizer(site, players, data_manager.config, data_manager.lineups)
-        lineups = late_swap.run(output_csv_path="data/output/swapped_lineups.csv")
+        lineups = late_swap.run(output_csv_path="C:/Users/samba/nba_dfs/data/output/swapped_lineups.csv")
 
         exposure_df = calculate_exposure(lineups.lineups, players)
         print(exposure_df)

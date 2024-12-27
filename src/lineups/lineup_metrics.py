@@ -34,7 +34,6 @@ def calculate_exposure(lineups, players):
             "FPTS": player.fpts,
             "Value": player.fpts / player.salary * 1000,
             "STDDEV": player.stddev,
-            "Variance Score": player.stddev / player.fpts,
             "Boom": player.boom_pct,
             "Bust": player.bust_pct,
         })

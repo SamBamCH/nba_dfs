@@ -3,7 +3,8 @@ import csv
 import re
 from data.player import Player
 from utils.config import load_config, get_project_root
-from datetime import datetime
+from utils.utils import parse_game_time
+from datetime import datetime, timedelta
 import pytz
 import itertools
 
@@ -15,6 +16,7 @@ class DataManager:
         self.players = []
         self.rename_dict = {
             "Nicolas Claxton": "Nic Claxton",
+            "Royce O'Neale": "Royce O'neale",
             # ownership.csv: projections.csv
         }
         self.lineups = []
@@ -32,50 +34,60 @@ class DataManager:
     
     def populate_ids_to_gametime(self):
         """
-        Populate the ids_to_gametime dictionary with timezone-aware datetimes.
+        Populate the ids_to_gametime dictionary with timezone-aware datetimes,
+        adjusting the lock time to be one hour earlier than the actual game time.
         """
         self.ids_to_gametime = {
-            player.id: self.eastern.localize(player.gametime)
+            player.id: player.gametime
             for player in self.players
             if hasattr(player, "id") and hasattr(player, "gametime") and player.id and player.gametime
         }
-        print(f"Populated ids_to_gametime with {len(self.ids_to_gametime)} entries.")
+        print(f"Populated ids_to_gametime with {len(self.ids_to_gametime)} entries, adjusted lock time by -1 hour.")
+
 
 
     
     def load_player_data(self):
         """
-        Load all player data from projections, ownership, and boom-bust files.
+        Load all player data based on their presence in the player_ids.csv file.
+        Populate additional data such as projections, ownership, and boom-bust values.
         """
+        # First initialize players from player_ids.csv
+        self._initialize_players_from_ids(self._resolve_path(self.config["player_path"]))
+
+        # Populate additional data for players
         self._load_projections(self._resolve_path(self.config["projection_path"]))
         self._load_boom_bust(self._resolve_path(self.config["boom_bust_path"]))
         self._load_ownership(self._resolve_path(self.config["ownership_path"]))
-        self._load_player_ids(self._resolve_path(self.config["player_path"]))
+
 
     def _load_projections(self, path):
+        """
+        Add projections data to the initialized players.
+        """
         with open(path, encoding="utf-8-sig") as file:
             reader = csv.DictReader(file)
             for row in reader:
-                fpts = float(row["Fpts"])
-                if fpts >= self.config["projection_minimum"]:
-                    # Split positions and append G, F, UTIL for DraftKings
-                    positions = row["Position"].split("/")
-                    if self.site == "dk":
-                        if "PG" in positions or "SG" in positions:
-                            positions.append("G")
-                        if "SF" in positions or "PF" in positions:
-                            positions.append("F")
-                        positions.append("UTIL")
+                positions = row["Position"].split("/")
+                if self.site == "dk":
+                    if "PG" in positions or "SG" in positions:
+                        positions.append("G")
+                    if "SF" in positions or "PF" in positions:
+                        positions.append("F")
+                    positions.append("UTIL")
 
-                    player = Player(
-                        name=row["Name"].strip(),
-                        team=row["Team"],
-                        position=positions,
-                        salary=int(row["Salary"].replace(",", "")),
-                        fpts=fpts,
-                        minutes=float(row["Minutes"])
-                    )
-                    self.players.append(player)
+                matched = False
+                for player in self.players:
+                    if player.name == row["Name"].strip() and player.team == row["Team"]:
+                        player.fpts = float(row["Fpts"])
+                        player.minutes = float(row["Minutes"])
+                        player.position = positions
+                        matched = True
+                        break
+                
+                if not matched:
+                    print(f"Warning: No matching player found for {row['Name']} on team {row['Team']}")
+
 
     def _load_boom_bust(self, path):
         with open(path, encoding="utf-8-sig") as file:
@@ -107,38 +119,45 @@ class DataManager:
                         break
 
 
-    def _load_player_ids(self, path):
+    def _initialize_players_from_ids(self, path):
+        """
+        Initialize Player objects based on player_ids.csv.
+        """
         with open(path, encoding="utf-8-sig") as file:
             reader = csv.DictReader(file)
             for row in reader:
-                for player in self.players:
-                    if player.name == row["Name"].strip() and player.team == row["TeamAbbrev"]:
-                        player.id = row["ID"]
-                        game_info = row["Game Info"]
-                        try:
-                            # Split Game Info to extract date and time, handle "ET"
-                            date_part, time_part, _ = game_info.split()[-3:]
-                            player.gametime = datetime.strptime(
-                                f"{date_part} {time_part}", "%m/%d/%Y %I:%M%p"
-                            )
-                        except ValueError as e:
-                            raise ValueError(f"Error parsing Game Info '{game_info}' for player {player.name}: {e}")
-                        break
+                try:
+                    gametime = parse_game_time(row["Game Info"])
+                except ValueError as e:
+                    print(f"Skipping player {row['Name']} due to game info error: {e}")
+                    gametime = None
+
+                player = Player(
+                    name=row["Name"].strip(),
+                    team=row["TeamAbbrev"],
+                    id=row["ID"],
+                    gametime=gametime, 
+                    salary=int(row["Salary"].replace(",", ""))
+                )
+                self.players.append(player)
+        print(f"Initialized {len(self.players)} players from player_ids.csv.")
 
 
     def load_player_lineups(self, path):
-        # Read projections into a dictionary
+        """
+        Load player lineups from a CSV file, ensuring that current time is correctly converted to match EST.
+        """
         with open(path, encoding="utf-8-sig") as file:
             reader = csv.DictReader(self.lower_first(file))
-            current_time = datetime.now(pytz.timezone("US/Eastern"))
 
-            # current_time = self.eastern.localize(
-            #     datetime(2024, 12, 13, 19, 30)  # Year, Month, Day, Hour, Minute
-            # )   
+            # Convert current time to EST
+            current_time = datetime.now(pytz.timezone("US/Central"))  # Get current time in CST
+            current_time = current_time.astimezone(self.eastern)  # Convert to EST
             print(f"Current time (ET): {current_time}")
-            print(f"current player ids and gametimes dict: {self.ids_to_gametime}")
+
             for row in reader:
                 if row["entry id"] != "" and self.site == "dk":
+                    # Extract player IDs from the lineup
                     PG_id = re.search(r"\((\d+)\)", row["pg"]).group(1)
                     SG_id = re.search(r"\((\d+)\)", row["sg"]).group(1)
                     SF_id = re.search(r"\((\d+)\)", row["sf"]).group(1)
@@ -147,11 +166,25 @@ class DataManager:
                     G_id = re.search(r"\((\d+)\)", row["g"]).group(1)
                     F_id = re.search(r"\((\d+)\)", row["f"]).group(1)
                     UTIL_id = re.search(r"\((\d+)\)", row["util"]).group(1)
+
+                    # Print comparison times for each player
+                    for position, player_id in zip(
+                        ["PG", "SG", "SF", "PF", "C", "G", "F", "UTIL"],
+                        [PG_id, SG_id, SF_id, PF_id, C_id, G_id, F_id, UTIL_id]
+                    ):
+                        if player_id in self.ids_to_gametime:
+                            player_time = self.ids_to_gametime[player_id]
+                            print(f"{position} ({player_id}): Current Time: {current_time}, Game Time: {player_time}")
+                        else: 
+                            print(f"{position} ({player_id}):  not found in ids_to_gametime")
+
+                    # Add lineup data, including lock status
                     self.lineups.append(
                         {
-                            "entry_id": row["entry id"],
-                            "contest_id": row["contest id"],
-                            "contest_name": row["contest name"],
+                            "Entry ID": row["entry id"],
+                            "Contest ID": row["contest id"],
+                            "Contest Name": row["contest name"],
+                            "Entry Fee": row["entry fee"],
                             "PG": row["pg"].replace("-", "#"),
                             "SG": row["sg"].replace("-", "#"),
                             "SF": row["sf"].replace("-", "#"),
@@ -195,11 +228,16 @@ class DataManager:
                                 if F_id in self.ids_to_gametime
                                 else False
                             ),
-                            "UTIL_is_locked": current_time
-                            > self.ids_to_gametime[UTIL_id],
+                            "UTIL_is_locked": (
+                                current_time > self.ids_to_gametime[UTIL_id]
+                                if UTIL_id in self.ids_to_gametime
+                                else False
+                            ),
                         }
                     )
         print(f"Successfully loaded {len(self.lineups)} lineups for late swap.")
+
+
 
     def lower_first(self, iterator):
         return itertools.chain([next(iterator).lower()], iterator)

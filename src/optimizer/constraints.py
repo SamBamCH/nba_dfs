@@ -11,7 +11,7 @@ class ConstraintManager:
 
     def add_salary_constraints(self):
         max_salary = 50000 if self.site == "dk" else 60000
-        min_salary = 49000 if self.site == "dk" else 59000
+        min_salary = self.config.get("min_lineup_salary") if self.site == "dk" else 59000
 
         self.problem += lpSum(
             player.salary * self.lp_variables[(player, position)]
@@ -87,9 +87,6 @@ class ConstraintManager:
         '''
         self.add_salary_constraints()
         self.add_position_constraints()
-        self.add_matchup_constraints()
-        self.add_team_constraints()
-        self.add_global_team_limit()
         self.add_single_player_constraints()
 
     def add_lineup_pool_constraints(self, selected_lineups, num_uniques):
@@ -120,3 +117,6 @@ class ConstraintManager:
             )
             self.problem += lineup_fpts >= min_fpts, "Min_FPTS"
 
+        self.add_global_team_limit()
+        self.add_matchup_constraints()
+        self.add_team_constraints()
