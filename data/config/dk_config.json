@@ -3,7 +3,7 @@
     "player_path": "data/dk/player_ids.csv",
     "ownership_path": "data/dk/ownership.csv",
     "boom_bust_path": "data/dk/boom_bust.csv",
-    "late_swap_path": "data/dk/live_lineups.csv",
+    "late_swap_path": "C:/Users/samba/nba_dfs/data/dk/live_lineups.csv",
     "contest_structure_path": "contest_structure.csv",
     "at_most": {
         "1": [],
@@ -18,9 +18,9 @@
     "team_limits": {},
     "custom_correlations": {},
     "global_team_limit": 4,
-    "projection_minimum": 15,
-    "randomness_amount": 30,
-    "min_lineup_salary": 49500,
+    "projection_minimum": 18.5,
+    "randomness_amount": 100,
+    "min_lineup_salary": 49800,
     "minutes_min": 20,
 	"player_combination_limits": {
     "pairs": [
@@ -28,6 +28,8 @@
     "trios": [
     ]
     },
-    "ownership_buffer": 0.07,
-    "fpts_buffer": 0.97
+    "ownership_buffer": 0.05,
+    "fpts_buffer": 0.95,
+    "max_own_raw": 266.19,
+    "min_fpts_raw": 270.80699
 }
