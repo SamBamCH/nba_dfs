@@ -43,7 +43,6 @@ class Player:
         # Convert Central Time to Eastern Time
         eastern_time = central_time.astimezone(pytz.timezone("US/Eastern"))
         
-        print(f"is_game_locked comparison: {eastern_time} vs. locked time {self.gametime}")
         return eastern_time >= self.gametime
 
 

@@ -105,6 +105,8 @@ class LateSwaptimizer:
         """
         Optimize a single lineup with the locked players treated as constraints.
         :param lineup: Dictionary representing a single lineup.
+        :param fpts_buffer: Multiplier for fpts sum to adjust constraints dynamically.
+        :param ownership_buffer: Multiplier for ownership sum to adjust constraints dynamically.
         :return: Optimized lineup.
         """
         # Reset the optimization problem
@@ -114,20 +116,44 @@ class LateSwaptimizer:
         eligible_players = [
             player for player in self.players if not player.is_game_locked()
         ]
+
         # Add static constraints
         constraint_manager = ConstraintManager(
             self.site, self.problem, self.players, self.lp_variables, self.config
         )
         constraint_manager.add_static_constraints()
-        constraint_manager.add_optional_constraints(
-            max_ownership=self.config.get("max_own_raw", 500),
-            min_fpts=self.config.get("min_fpts_raw", 200),  # Allow a small buffer for flexibility
-        )
 
         # Apply locked player constraints
         self.apply_locked_constraints(lineup)
 
-        # Generate random projections and scale variables
+        # Optimize once to calculate dynamic constraints
+        self.problem.setObjective(
+            lpSum(player.fpts * self.lp_variables[(player, position)]
+                  for player in eligible_players
+                  for position in player.position)
+        )
+        self.problem.solve(plp.GLPK(msg=0))
+
+        # Calculate fpts and ownership sums from the optimized lineup
+        fpts_sum = sum(
+            player.fpts for (player, _), var in self.lp_variables.items() if var.varValue == 1
+        )
+        ownership_sum = sum(
+            player.ownership for (player, _), var in self.lp_variables.items() if var.varValue == 1
+        )
+        fpts_buffer = self.config.get("fpts_buffer", 0.98)
+        ownership_buffer = self.config.get("ownership_buffer", 0.01)
+
+        # Adjust constraints dynamically
+        dynamic_min_fpts = fpts_buffer * fpts_sum
+        dynamic_max_ownership = (1 - ownership_buffer) * ownership_sum
+        print(f"min_fpts: {dynamic_min_fpts}, max_ownership: {dynamic_max_ownership}")
+        constraint_manager.add_optional_constraints(
+            max_ownership=dynamic_max_ownership,
+            min_fpts=dynamic_min_fpts
+        )
+
+        # Redefine the objective function with scaled projections
         random_projections = {
             (player, position): np.random.normal(
                 player.fpts, player.stddev * self.config["randomness_amount"] / 100
@@ -135,23 +161,17 @@ class LateSwaptimizer:
             for player in eligible_players
             for position in player.position
         }
-
         max_fpts = max(random_projections.values(), default=1)  # Avoid division by zero
 
         scaled_projections = {key: value / max_fpts for key, value in random_projections.items()}
 
-        # Define the objective function
         self.problem.setObjective(
-            lpSum(scaled_projections[(player, position)]
-                * self.lp_variables[(player, position)]
-                for player in eligible_players
-                for position in player.position
-            )
+            lpSum(scaled_projections[(player, position)] * self.lp_variables[(player, position)]
+                  for player in eligible_players
+                  for position in player.position)
         )
 
-        self.problem.writeLP("problem.lp")
-
-        # Solve the optimization problem
+        # Solve the optimization problem again with dynamic constraints
         try:
             self.problem.solve(plp.GLPK(msg=0))
         except plp.PulpSolverError:
@@ -186,7 +206,7 @@ class LateSwaptimizer:
 
         # Loop through each lineup and optimize it
         for index, lineup in lineups_df.iterrows():
-            print(f"Optimizing lineup for entry ID {lineup['Entry ID']}...")
+            # print(f"Optimizing lineup for entry ID {lineup['Entry ID']}...")
 
             # Convert the current row to a dictionary
             lineup_dict = lineup.to_dict()

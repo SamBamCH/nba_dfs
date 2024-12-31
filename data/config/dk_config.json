@@ -17,8 +17,8 @@
     "matchup_at_least": {},
     "team_limits": {},
     "custom_correlations": {},
-    "global_team_limit": 4,
-    "projection_minimum": 18.5,
+    "global_team_limit": 3,
+    "projection_minimum": 20,
     "randomness_amount": 100,
     "min_lineup_salary": 49800,
     "minutes_min": 20,
@@ -28,8 +28,6 @@
     "trios": [
     ]
     },
-    "ownership_buffer": 0.05,
-    "fpts_buffer": 0.95,
-    "max_own_raw": 266.19,
-    "min_fpts_raw": 270.80699
+    "ownership_buffer": 0.02,
+    "fpts_buffer": 0.965
 }
