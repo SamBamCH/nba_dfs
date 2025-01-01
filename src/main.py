@@ -15,7 +15,7 @@ def main():
     pd.set_option('display.max_colwidth', None)
     # Initialize DataManager for the desired site (e.g., 'dk')
     site = "dk"  # Or "fd" depending on the use case
-    process = 'swap'
+    process = 'main'
 
     data_manager = DataManager(site)
 
@@ -45,7 +45,7 @@ def main():
 
     # Initialize the optimizer
     if process == 'main':
-        num_lineups = 230 # Number of lineups to generate
+        num_lineups = 110 # Number of lineups to generate
         num_uniques = 1 # Minimum unique players between lineups
         optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 

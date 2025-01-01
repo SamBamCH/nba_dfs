@@ -82,20 +82,21 @@ class Optimizer:
         """
         lineups = Lineups()  # Object to store all generated lineups
         exclusion_constraints = []  # List to store uniqueness constraints
-
-        # Weights and baseline values
-        baseline_fpts = None
-        baseline_ownership = None
-        ownership_buffer = self.config.get("ownership_buffer", 0.05)  # Example: 5% buffer
+        
+        min_fpts = None
+        max_ownership = None
         randomness_factor = self.config.get("randomness_amount", 10) / 100  # Example: 10% randomness
 
         # Stage 1: Generate the initial lineup to determine baseline values
         self.problem = LpProblem("Stage1_NBA_DFS_Optimization", LpMaximize)
+        print('STAGE 1 OF OPTIMIZATION:')
 
         constraint_manager = ConstraintManager(
             self.site, self.problem, self.players, self.lp_variables, self.config
         )
         constraint_manager.add_static_constraints()
+        print(f'max_ownership = {max_ownership}, min_fpts = {min_fpts}')
+
 
         # Objective: Maximize fpts for the initial lineup
         self.problem.setObjective(
@@ -123,14 +124,56 @@ class Optimizer:
         ]
         final_lineup = [(player, position) for player, position in final_vars]
 
+        baseline_fpts = None
+        max_ownership = None
         baseline_fpts = sum(player.fpts for player, _ in final_lineup)
+        fpts_buffer = self.config.get("fpts_buffer", 0.98)
+        min_fpts = fpts_buffer * baseline_fpts
+        
+        print(f"top projected lineup: {baseline_fpts}, min_fpts: {min_fpts}")
+
+        self.problem = LpProblem("stage2_nba_dfs_optimization", LpMaximize)
+        print('STAGE 2 OF OPTIMIZATION:')
+        constraint_manager = ConstraintManager(
+            self.site, self.problem, self.players, self.lp_variables, self.config
+        )
+        constraint_manager.add_static_constraints()
+        print(f'max_ownership = {max_ownership}, min_fpts = {min_fpts}')
+        constraint_manager.add_optional_constraints(
+            max_ownership,
+            min_fpts  # Allow a small buffer for flexibility
+
+        )
+        self.problem.setObjective(
+            lpSum(
+                player.ownership * self.lp_variables[(player, position)]
+                for player in self.players
+                for position in player.position
+            )
+        )
+
+        try: 
+            self.problem.solve(plp.GLPK(msg=0))
+        except plp.PulpSolverError:
+            print("infeasibility during stage 2 optimization")
+            return lineups
+        
+        if plp.LpStatus[self.problem.status] != "Optimal":
+            print("no optimal solution found during stage 2 optimization.")
+            return lineups
+        
+        final_vars = [
+            key for key, var in self.lp_variables.items() if var.varValue == 1
+        ]
+        final_lineup = [(player, position) for player, position in final_vars]
+        ownership_buffer = self.config.get("ownership_buffer")
         baseline_ownership = sum(player.ownership for player, _ in final_lineup)
-        max_ownership = (1-ownership_buffer) * baseline_ownership
-        min_fpts = self.config.get("fpts_buffer", 0.95) * baseline_fpts
+        max_ownership = ownership_buffer * baseline_ownership
 
-        print(f"Baseline FPTS: {baseline_fpts}, Baseline Ownership: {baseline_ownership}, max_ownership: {max_ownership}, min_fpts: {min_fpts}")
+        print(f'top owned lineup: {baseline_ownership}, ownership limit: {max_ownership}, ownership_buffer: {ownership_buffer}')
 
-        # Stage 2: Optimize subsequent lineups with added randomness
+
+        # Stage 3: Optimize subsequent lineups with added randomness
         for i in range(self.num_lineups):
             if i % 10 == 0: 
                 print(i)
@@ -141,29 +184,26 @@ class Optimizer:
                 self.site, self.problem, self.players, self.lp_variables, self.config
             )
             constraint_manager.add_static_constraints()
-            constraint_manager.add_optional_constraints(
-                max_ownership=(1 - ownership_buffer) * baseline_ownership,
-                min_fpts=self.config.get("fpts_buffer", 0.95) * baseline_fpts,  # Allow a small buffer for flexibility
-            )
+            constraint_manager.add_optional_constraints(max_ownership, min_fpts)
 
             # Reapply exclusion constraints for uniqueness
             for constraint in exclusion_constraints:
                 self.problem += constraint
 
             # Add randomness to ceiling values
-            random_ceiling = {
-                player: np.random.normal(player.ceiling, player.stddev * randomness_factor)
+            random_projections = {
+                player: np.random.normal(player.fpts, player.stddev * randomness_factor)
                 for player in self.players
             }
 
             # Scale randomized ceiling values
-            max_ceiling = max(random_ceiling.values(), default=1)  # Avoid division by zero
-            scaled_random_ceiling = {player: value / max_ceiling for player, value in random_ceiling.items()}
+            max_projections = max(random_projections.values(), default=1)  # Avoid division by zero
+            scaled_random_projections = {player: value / max_projections for player, value in random_projections.items()}
 
             # Objective: Maximize randomized ceiling
             self.problem.setObjective(
                 lpSum(
-                    scaled_random_ceiling[player] * self.lp_variables[(player, position)]
+                    scaled_random_projections[player] * self.lp_variables[(player, position)]
                     for player in self.players
                     for position in player.position
                 )
@@ -185,6 +225,7 @@ class Optimizer:
                 key for key, var in self.lp_variables.items() if var.varValue == 1
             ]
             final_lineup = [(player, position) for player, position in final_vars]
+            self.adjust_roster_for_late_swap(final_lineup)
             lineups.add_lineup(final_lineup)
 
             # Add exclusion constraint to prevent exact duplicate lineups

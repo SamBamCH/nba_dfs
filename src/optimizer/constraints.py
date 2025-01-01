@@ -108,6 +108,8 @@ class ConstraintManager:
                 for position in player.position
             )
             self.problem += lineup_ownership <= max_ownership, "Max_Ownership"
+        else: 
+            print('max_ownership is none')
 
         if min_fpts is not None:
             lineup_fpts = lpSum(
@@ -116,6 +118,8 @@ class ConstraintManager:
                 for position in player.position
             )
             self.problem += lineup_fpts >= min_fpts, "Min_FPTS"
+        else: 
+            print('min_fpts is none')
 
         self.add_global_team_limit()
         self.add_matchup_constraints()
