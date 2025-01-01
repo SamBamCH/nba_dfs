@@ -52,14 +52,27 @@ class ConstraintManager:
             eligible = [(player, position) for player in self.players if player.team == team]
             self.problem += lpSum(self.lp_variables[key] for key in eligible) <= limit, f"Team_{team}"
 
-    def add_global_team_limit(self):
-        global_limit = self.config.get("global_team_limit")
-        if global_limit:
+    def add_global_team_salary_limit(self):
+        """
+        Add a constraint to limit the total salary of players from the same team in a lineup.
+        Example: Ensure the combined salary of players from the same team does not exceed a global limit.
+        """
+        max_team_salary = self.config.get("max_team_salary")  # Global salary limit for any single team
+        if max_team_salary:
+            # Iterate over unique teams
             for team in set(player.team for player in self.players):
+                # Filter eligible players for the team
                 eligible = [
                     (player, pos) for player in self.players for pos in player.position if player.team == team
                 ]
-                self.problem += lpSum(self.lp_variables[key] for key in eligible) <= global_limit, f"Global_Team_{team}"
+
+                # Add a constraint to limit the total salary for players from this team
+                self.problem += (
+                    lpSum(player.salary * self.lp_variables[(player, pos)] for player, pos in eligible)
+                    <= max_team_salary,
+                    f"Global_Team_Salary_Limit_{team}"
+                )
+
 
 
     def exclude_exact_lineup(self, lineup, lineup_index):
@@ -121,6 +134,6 @@ class ConstraintManager:
         else: 
             print('min_fpts is none')
 
-        self.add_global_team_limit()
+        self.add_global_team_salary_limit()
         self.add_matchup_constraints()
         self.add_team_constraints()

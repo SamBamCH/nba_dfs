@@ -208,6 +208,7 @@ class Optimizer:
                     for position in player.position
                 )
             )
+            self.problem.writeLP("problem.lp")
 
             # Solve the problem
             try:

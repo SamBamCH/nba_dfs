@@ -5,6 +5,7 @@ from lineups.lineups import Lineups
 from lineups.lineup_metrics import calculate_exposure
 from optimizer.late_swaptimizer import LateSwaptimizer
 import pandas as pd
+from data.database import initialize_database, write_players_to_database
 
 ### Entry point of the application
 
@@ -13,6 +14,8 @@ def main():
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', None)
     pd.set_option('display.max_colwidth', None)
+
+    initialize_database()
     # Initialize DataManager for the desired site (e.g., 'dk')
     site = "dk"  # Or "fd" depending on the use case
     process = 'main'
@@ -41,11 +44,14 @@ def main():
         if player.fpts > data_manager.config.get("projection_minimum")
     ]
 
+    write_players_to_database(players)
+    print("Player data saved to the database.")
+
     ### up to this point, the optimization process is the exact same, assuming that the projections, boom_bust, and player_ids are all the same format. 
 
     # Initialize the optimizer
     if process == 'main':
-        num_lineups = 110 # Number of lineups to generate
+        num_lineups = 20 # Number of lineups to generate
         num_uniques = 1 # Minimum unique players between lineups
         optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 
@@ -75,6 +81,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+#TODO: optimizer.adjust_roster_for_late_swap() not swapping correctly?
 
 
 

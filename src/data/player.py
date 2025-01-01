@@ -3,6 +3,7 @@ import pytz
 
 class Player:
     def __init__(self, name, team, id, gametime, salary):
+        self.id = id
         self.name = name
         self.team = team
         self.position = []
@@ -17,7 +18,6 @@ class Player:
         self.boom_pct = 0
         self.bust_pct = 0
         self.ownership = 0
-        self.id = id
         self.gametime = gametime  
         self.std_minutes = 0
         self.std_boom_pct = 0
