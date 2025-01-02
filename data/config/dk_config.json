@@ -17,7 +17,7 @@
     "matchup_at_least": {},
     "team_limits": {},
     "custom_correlations": {},
-    "max_team_salary": 18000,
+    "max_team_salary": 22000,
     "projection_minimum": 18,
     "randomness_amount": 100,
     "min_lineup_salary": 49800,
@@ -28,6 +28,6 @@
     "trios": [
     ]
     },
-    "ownership_buffer": 0.95,
-    "fpts_buffer": 0.965
+    "ownership_buffer": -100,
+    "fpts_buffer": 0.98
 }
