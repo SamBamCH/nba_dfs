@@ -18,7 +18,8 @@ def main():
     initialize_database()
     # Initialize DataManager for the desired site (e.g., 'dk')
     site = "dk"  # Or "fd" depending on the use case
-    process = 'swap'
+    process = 'main'
+
 
     data_manager = DataManager(site)
 
@@ -51,9 +52,11 @@ def main():
 
     # Initialize the optimizer
     if process == 'main':
-        num_lineups = 110 # Number of lineups to generate
+        num_lineups = 1 # Number of lineups to generate
         num_uniques = 1 # Minimum unique players between lineups
         optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
+
+        optimizer.explore_fpts_ownership_tradeoff(min_ratio=0.95, max_ratio=1, steps=50)
 
         # Generate lineups
         lineups = optimizer.run()
@@ -83,7 +86,7 @@ if __name__ == "__main__":
     main()
 
 
-#TODO: optimizer.adjust_roster_for_late_swap() not swapping correctly?
+#TODO: boost for player's ceilings who are starting? seems like stok projects the starters for less min in uncertain spots. 
 
 
 

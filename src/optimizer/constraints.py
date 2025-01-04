@@ -108,7 +108,7 @@ class ConstraintManager:
         '''
         pass
 
-    def add_optional_constraints(self, max_ownership=None, min_fpts=None):
+    def add_optional_constraints(self, min_fpts=None, max_ownership=None):
         """
         Add optional constraints such as ownership maximum and FPTS minimum.
         :param max_ownership: Maximum allowable cumulative ownership.

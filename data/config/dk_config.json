@@ -19,7 +19,7 @@
     "custom_correlations": {},
     "max_team_salary": 22000,
     "projection_minimum": 18,
-    "randomness_amount": 100,
+    "randomness_amount": 0,
     "min_lineup_salary": 49800,
     "minutes_min": 20,
 	"player_combination_limits": {
@@ -28,6 +28,6 @@
     "trios": [
     ]
     },
-    "ownership_buffer": -100,
-    "fpts_buffer": 0.98
+    "ceiling_weight": 1,
+    "ownership_weight": 0.5
 }
