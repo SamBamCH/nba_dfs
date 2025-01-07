@@ -142,7 +142,7 @@ class LateSwaptimizer:
             player.ownership for (player, _), var in self.lp_variables.items() if var.varValue == 1
         )
         fpts_buffer = self.config.get("fpts_buffer", 0.98)
-        ownership_buffer = self.config.get("ownership_buffer", 0.95)
+        ownership_buffer = self.config.get("ownership_buffer", -100)
 
         # Adjust constraints dynamically
         dynamic_min_fpts = fpts_buffer * fpts_sum
