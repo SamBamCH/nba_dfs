@@ -52,12 +52,9 @@ def main():
 
     # Initialize the optimizer
     if process == 'main':
-        num_lineups = 1 # Number of lineups to generate
+        num_lineups = 60 # Number of lineups to generate
         num_uniques = 1 # Minimum unique players between lineups
         optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
-
-        optimizer.explore_fpts_ownership_tradeoff(min_ratio=0.95, max_ratio=1, steps=50)
-
         # Generate lineups
         lineups = optimizer.run()
 
@@ -85,8 +82,12 @@ def main():
 if __name__ == "__main__":
     main()
 
-
+#TODO: complexify lateswap with the same parameters as prelock
+#TODO: add 'entry editor' style
+#TODO: live ownership from contests
+#TODO: infer unlocked player ownership
 #TODO: boost for player's ceilings who are starting? seems like stok projects the starters for less min in uncertain spots. 
-
+#TODO: clean up logic of derivative for finding optimal limit. it's fine currently, but could be better. 
+#TODO: better way to dial in ownership max constraint. Right now, can use it to avoid being super chalky, but that's about it. 
 
 

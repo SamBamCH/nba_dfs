@@ -138,15 +138,12 @@ class LateSwaptimizer:
         fpts_sum = sum(
             player.fpts for (player, _), var in self.lp_variables.items() if var.varValue == 1
         )
-        ownership_sum = sum(
-            player.ownership for (player, _), var in self.lp_variables.items() if var.varValue == 1
-        )
+        
         fpts_buffer = self.config.get("fpts_buffer", 0.98)
-        ownership_buffer = self.config.get("ownership_buffer", -100)
 
         # Adjust constraints dynamically
         dynamic_min_fpts = fpts_buffer * fpts_sum
-        dynamic_max_ownership = (1 - ownership_buffer) * ownership_sum
+        dynamic_max_ownership = self.config.get("max_ownership_sum")
         print(f"min_fpts: {dynamic_min_fpts}, max_ownership: {dynamic_max_ownership}")
         constraint_manager.add_optional_constraints(
             max_ownership=dynamic_max_ownership,

@@ -169,24 +169,32 @@ class Optimizer:
 
         self.min_fpts = best_fpts_min
 
-        # -- 3) Plot the min/max ownership vs. fpts_min
-        plt.figure(figsize=(8, 5))
-        plt.plot(fpts_min_list, min_ownership_list, marker='o', label='Min Ownership')
-        plt.xlabel('FPTS Minimum Constraint')
-        plt.ylabel('Ownership (Sum)')
-        plt.title('Ownership vs. FPTS Minimum Constraint')
-        plt.legend()
+        # -- 3) Plot the min/max ownership vs. fpts_min on primary y-axis
+        fig, ax1 = plt.subplots(figsize=(8, 5))
+
+        color1 = 'tab:blue'
+        ax1.set_xlabel('FPTS Minimum Constraint')
+        ax1.set_ylabel('Ownership (Sum)', color=color1)
+        line1 = ax1.plot(fpts_min_list, min_ownership_list, 
+                        marker='o', color=color1, label='Min Ownership')
+        ax1.tick_params(axis='y', labelcolor=color1)
+
+        # -- Create a second y-axis for the derivative
+        ax2 = ax1.twinx()
+        color2 = 'tab:red'
+        ax2.set_ylabel('d(Ownership)/dFPTS', color=color2)
+        line2 = ax2.plot(fpts_min_list, deriv, 
+                        marker='x', color=color2, label='Derivative')
+        ax2.tick_params(axis='y', labelcolor=color2)
+
+        # -- Combine legends from both axes
+        lines = line1 + line2
+        labels = [l.get_label() for l in lines]
+        ax1.legend(lines, labels, loc='best')
+
+        plt.title('Ownership vs. FPTS Minimum Constraint + Derivative')
         plt.grid(True)
         plt.show()
-
-        user_input = input(
-            f"Recommended fpts_min is {best_fpts_min:.2f}. Press Enter to accept or type a custom value: "
-        )
-        if user_input.strip():
-            try:
-                self.min_fpts = float(user_input.strip())
-            except ValueError:
-                print("Invalid input. Using recommended value.")
 
 
 
@@ -276,6 +284,8 @@ class Optimizer:
         randomness_factor = self.config.get("randomness_amount", 10) / 100  # Example: 10% randomness
         ceiling_weight = self.config.get("ceiling_weight", 1.0)
         ownership_weight = self.config.get("ownership_weight", 1.0)
+        min_fpts = self.config.get("min_fpts")
+        max_own = self.config.get("max_ownership")
 
     
         # Stage 3: Optimize subsequent lineups with added randomness
@@ -284,16 +294,15 @@ class Optimizer:
                 print(i)
             self.problem = LpProblem(f"Stage2_NBA_DFS_Optimization_{i}", LpMaximize)
 
+            for constraint in exclusion_constraints:
+                self.problem += constraint
+
             # Reinitialize constraints for the new problem
             constraint_manager = ConstraintManager(
                 self.site, self.problem, self.players, self.lp_variables, self.config
             )
             constraint_manager.add_static_constraints()
-            constraint_manager.add_optional_constraints(self.min_fpts)
-
-            # Reapply exclusion constraints for uniqueness
-            for constraint in exclusion_constraints:
-                self.problem += constraint
+            constraint_manager.add_optional_constraints(min_fpts, max_own)
 
             sampled_ceiling_values = {}
             sampled_ownership_values = {}

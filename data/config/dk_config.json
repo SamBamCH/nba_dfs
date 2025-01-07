@@ -28,7 +28,9 @@
     "trios": [
     ]
     },
-    "ceiling_weight": 1,
-    "ownership_weight": 0.5,
-    "fpts_buffer": 0.98
+    "ceiling_weight": 2,
+    "ownership_weight": 1,
+    "fpts_buffer": 0.98,
+    "min_fpts": 278,
+    "max_ownership": 250
 }
