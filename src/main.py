@@ -63,6 +63,7 @@ def main():
             data_manager.config["ownership_weight"] = c_params.get("ownership_weight", 1)
             data_manager.config["max_ownership_sum"] = c_params.get("max_ownership_sum", 999)
             data_manager.config["min_fpts"] = c_params.get("min_fpts", 0)
+            data_manager.config["randomness_amount"] = c_params.get("randomness_amount", 0)
 
             optimizer = Optimizer(
                     site=site,
@@ -100,9 +101,7 @@ if __name__ == "__main__":
     main()
 
 #------CONCEPTUALIZING------#
-#TODO: add different parameters for different contests (SE, 3-max, 20-max, 150-max), and loop them through the optimizer, creating a unique output for each loop. We can add a parameter to the config file that takes the requetsed number of unique lineups from each style of the optimization. 
 #TODO: add 'entry editor' style
-    ### different weights for different contests? i.e. closer to optimal in SE, more variability in optimization for MME. 
 #TODO: live ownership from contests
 #TODO: infer unlocked player ownership
 #TODO: boost for player's ceilings who are starting? seems like stok projects the starters for less min in uncertain spots. 
