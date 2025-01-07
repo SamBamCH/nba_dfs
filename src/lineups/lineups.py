@@ -4,6 +4,8 @@ import numpy as np
 class Lineups:
     def __init__(self):
         self.lineups = []
+        self.lineup_metrics = []  # <-- We'll store computed lineup attributes here
+
 
     def add_lineup(self, lineup):
         """Add a new lineup to the collection."""
@@ -11,6 +13,18 @@ class Lineups:
             (player, pos, player.id) for player, pos in lineup
         ]
         self.lineups.append(formatted_lineup)
+        fpts_sum = sum(player.fpts for player, _, _ in formatted_lineup)
+        ownership_sum = sum(player.ownership for player, _, _ in formatted_lineup)
+        boom_sum = sum(player.boom_pct for player, _, _ in formatted_lineup)
+        salary_sum = sum(player.salary for player, _, _ in formatted_lineup)
+
+        lineup_stats = {
+            "FPTS": fpts_sum,
+            "Ownership": ownership_sum,
+            "Boom": boom_sum,
+            "Salary": salary_sum,
+        }
+        self.lineup_metrics.append(lineup_stats)
 
     def sort_lineup(self, lineup, site):
         """Sort a lineup by position based on the site-specific rules."""
@@ -67,6 +81,23 @@ class Lineups:
                 f.write(
                     f"{lineup_str},{salary},{round(fpts_p, 2)},{own_p},{own_s},{mins},{stddev}\n"
                 )
+
+    def show_lineups_overview(self):
+        """
+        Print a simple table (or list) of each lineup's computed metrics.
+        """
+        print("\n=== Lineup Overview ===")
+        print("Lineup # | FPTS   | Ownership | Boom    | Median  | Salary ")
+        print("--------------------------------------------------------")
+        for i, metrics in enumerate(self.lineup_metrics, start=1):
+            print(
+                f"{i:7d} | "
+                f"{metrics['FPTS']:.1f} | "
+                f"{metrics['Ownership']:.1f} | "
+                f"{metrics['Boom']:.1f} | "
+                f"{metrics['Salary']:.0f}"
+            )
+        print("")
 
 
     def __len__(self):

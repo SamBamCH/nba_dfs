@@ -290,7 +290,7 @@ class Optimizer:
     
         # Stage 3: Optimize subsequent lineups with added randomness
         for i in range(self.num_lineups):
-            if i % 10 == 0: 
+            if i % 2 == 0: 
                 print(i)
             self.problem = LpProblem(f"Stage2_NBA_DFS_Optimization_{i}", LpMaximize)
 
@@ -370,6 +370,7 @@ class Optimizer:
             ) <= len(final_vars) - self.num_uniques
             exclusion_constraints.append(exclusion_constraint)
 
+        lineups.show_lineups_overview()
         return lineups
 
 

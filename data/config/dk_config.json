@@ -19,7 +19,7 @@
     "custom_correlations": {},
     "max_team_salary": 22000,
     "projection_minimum": 18,
-    "randomness_amount": 30,
+    "randomness_amount": 100,
     "min_lineup_salary": 49800,
     "minutes_min": 20,
 	"player_combination_limits": {
@@ -28,9 +28,34 @@
     "trios": [
     ]
     },
-    "ceiling_weight": 2,
+    "ceiling_weight": 3,
     "ownership_weight": 1,
     "fpts_buffer": 0.98,
-    "min_fpts": 278,
-    "max_ownership_sum": 250
+    "max_ownership_sum": 275,
+    "contest_params": {
+        "SE": {
+            "num_lineups": 1,
+            "num_uniques": 1,
+            "ceiling_weight": 5,
+            "ownership_weight": 1,
+            "min_fpts": 278,
+            "max_ownership_sum": 300
+        },
+        "3max": {
+            "num_lineups": 3,
+            "num_uniques": 2,
+            "ceiling_weight": 4,
+            "ownership_weight": 1.5,
+            "min_fpts": 278,
+            "max_ownership_sum": 280
+        },
+        "20max": {
+            "num_lineups": 20,
+            "num_uniques": 2,
+            "ceiling_weight": 3,
+            "ownership_weight": 1,
+            "min_fpts": 278,
+            "max_ownership_sum": 275
+        }
+    }
 }

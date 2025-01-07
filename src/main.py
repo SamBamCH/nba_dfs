@@ -18,7 +18,7 @@ def main():
     initialize_database()
     # Initialize DataManager for the desired site (e.g., 'dk')
     site = "dk"  # Or "fd" depending on the use case
-    process = 'swap'
+    process = 'main'
 
 
     data_manager = DataManager(site)
@@ -52,18 +52,35 @@ def main():
 
     # Initialize the optimizer
     if process == 'main':
-        num_lineups = 60 # Number of lineups to generate
-        num_uniques = 1 # Minimum unique players between lineups
-        optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
-        # Generate lineups
-        lineups = optimizer.run()
+        contest_params_dict = data_manager.config.get("contest_params", {})
 
-        # Calculate and display player exposure
-        exposure_df = calculate_exposure(lineups.lineups, players)
-        print(exposure_df)
+        for contest_style, c_params in contest_params_dict.items():
+            print(f"\n=== Building lineups for: {contest_style} ===")
 
-        # Export the lineups
-        lineups.export_to_csv("C:/Users/samba/nba_dfs/data/output/optimal_lineups.csv", site=optimizer.site)
+            num_lineups = c_params.get("num_lineups", 5)
+            num_uniques = c_params.get("num_uniques", 1)
+            data_manager.config["ceiling_weight"] = c_params.get("ceiling_weight", 3)
+            data_manager.config["ownership_weight"] = c_params.get("ownership_weight", 1)
+            data_manager.config["max_ownership_sum"] = c_params.get("max_ownership_sum", 999)
+            data_manager.config["min_fpts"] = c_params.get("min_fpts", 0)
+
+            optimizer = Optimizer(
+                    site=site,
+                    players=players,
+                    num_lineups=num_lineups,
+                    num_uniques=num_uniques,
+                    config=data_manager.config
+                )
+            # Generate lineups
+            lineups = optimizer.run()
+
+            # Print exposures or any other info
+            exposure_df = calculate_exposure(lineups.lineups, players)
+            print(exposure_df)
+
+            # Optionally, export to a unique file for each contest type
+            filename = f"C:/Users/samba/nba_dfs/data/output/optimal_lineups_{contest_style}.csv"
+            lineups.export_to_csv(filename, site=optimizer.site)
 
     else :
         data_manager.populate_ids_to_gametime()
@@ -83,7 +100,7 @@ if __name__ == "__main__":
     main()
 
 #------CONCEPTUALIZING------#
-#TODO: add matrix of lineups attributes (ownership, fpts, boom, etc.) in the output. 
+#TODO: add different parameters for different contests (SE, 3-max, 20-max, 150-max), and loop them through the optimizer, creating a unique output for each loop. We can add a parameter to the config file that takes the requetsed number of unique lineups from each style of the optimization. 
 #TODO: add 'entry editor' style
     ### different weights for different contests? i.e. closer to optimal in SE, more variability in optimization for MME. 
 #TODO: live ownership from contests
@@ -91,7 +108,7 @@ if __name__ == "__main__":
 #TODO: boost for player's ceilings who are starting? seems like stok projects the starters for less min in uncertain spots. 
 #TODO: clean up logic of derivative for finding optimal limit. it's fine currently, but could be better. 
 #TODO: better way to dial in ownership max constraint. Right now, can use it to avoid being super chalky, but that's about it. 
-
+#TODO: redundant config definition in the loop. 
 
 #------TEST------#
 #TODO: complexify lateswap with the same parameters as prelock
