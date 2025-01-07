@@ -140,32 +140,52 @@ class LateSwaptimizer:
         )
         
         fpts_buffer = self.config.get("fpts_buffer", 0.98)
+        max_ownership_sum = self.config.get("max_ownership_sum")
+        ceiling_weight = self.config.get("ceiling_weight")
+        ownership_weight = self.config.get("ownership_weight")
+        randomness_factor = self.config.get("randomness_amount", 10) / 100  # Example: 10% randomness
+
 
         # Adjust constraints dynamically
         dynamic_min_fpts = fpts_buffer * fpts_sum
-        dynamic_max_ownership = self.config.get("max_ownership_sum")
-        print(f"min_fpts: {dynamic_min_fpts}, max_ownership: {dynamic_max_ownership}")
-        constraint_manager.add_optional_constraints(
-            max_ownership=dynamic_max_ownership,
-            min_fpts=dynamic_min_fpts
-        )
+        print(f"min_fpts: {dynamic_min_fpts}, max_ownership_sum: {max_ownership_sum}")
+        constraint_manager.add_optional_constraints(dynamic_min_fpts, max_ownership_sum)
 
-        # Redefine the objective function with scaled projections
-        random_projections = {
-            (player, position): np.random.normal(
-                player.fpts, player.stddev * self.config["randomness_amount"] / 100
-            )
-            for player in eligible_players
-            for position in player.position
-        }
-        max_fpts = max(random_projections.values(), default=1)  # Avoid division by zero
+        sampled_ceiling_values = {}
+        sampled_ownership_values = {}
 
-        scaled_projections = {key: value / max_fpts for key, value in random_projections.items()}
+        # Add randomness to ceiling values
+        for player in eligible_players:
+            # Example: random normal ~ (mean = player.ceiling, std ~ 1/4 of ceiling * randomness_factor)
+            # Tweak the factor as desired to not overshoot too much
+            ceiling_stddev = player.boom_pct * 0.25
+            ownership_stddev = player.ownership * 0.25
+
+            random_ceiling = np.random.normal(player.boom_pct, ceiling_stddev * randomness_factor)
+            random_ownership = np.random.normal(player.ownership, ownership_stddev * randomness_factor)
+
+            # Clip them to ensure no negative ownership, no crazy negative ceiling
+            random_ceiling = max(0.0, random_ceiling)
+            random_ownership = max(0.0, random_ownership)
+
+            sampled_ceiling_values[player] = random_ceiling
+            sampled_ownership_values[player] = random_ownership
+
+        # Scale randomized values
+        max_ownership = max(sampled_ownership_values.values(), default=1)  # Avoid division by zero
+        scaled_sampled_ownership = {player: value / max_ownership for player, value in sampled_ownership_values.items()}
+        max_ceiling = max(sampled_ceiling_values.values(), default=1)
+        scaled_sampled_ceiling = {player: value / max_ceiling for player, value in sampled_ceiling_values.items()}
 
         self.problem.setObjective(
-            lpSum(scaled_projections[(player, position)] * self.lp_variables[(player, position)]
-                  for player in eligible_players
-                  for position in player.position)
+            lpSum(
+                (
+                    ceiling_weight * scaled_sampled_ceiling[player]
+                    - ownership_weight * scaled_sampled_ownership[player]
+                ) * self.lp_variables[(player,position)]
+                for player in eligible_players
+                for position in player.position
+            )
         )
 
         # Solve the optimization problem again with dynamic constraints
@@ -200,6 +220,7 @@ class LateSwaptimizer:
         # Convert the input lineups into a DataFrame for easy manipulation
         lineups_df = pd.DataFrame(self.lineups)
         lineups = Lineups()
+
 
         # Loop through each lineup and optimize it
         for index, lineup in lineups_df.iterrows():

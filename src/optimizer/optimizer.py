@@ -285,7 +285,7 @@ class Optimizer:
         ceiling_weight = self.config.get("ceiling_weight", 1.0)
         ownership_weight = self.config.get("ownership_weight", 1.0)
         min_fpts = self.config.get("min_fpts")
-        max_own = self.config.get("max_ownership")
+        max_ownership_sum = self.config.get("max_ownership_sum")
 
     
         # Stage 3: Optimize subsequent lineups with added randomness
@@ -302,7 +302,7 @@ class Optimizer:
                 self.site, self.problem, self.players, self.lp_variables, self.config
             )
             constraint_manager.add_static_constraints()
-            constraint_manager.add_optional_constraints(min_fpts, max_own)
+            constraint_manager.add_optional_constraints(min_fpts, max_ownership_sum)
 
             sampled_ceiling_values = {}
             sampled_ownership_values = {}

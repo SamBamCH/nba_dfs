@@ -39,6 +39,7 @@ class Player:
         """
         # Get the current time in Central Time
         central_time = pytz.timezone("US/Central").localize(datetime.now())
+        # central_time = datetime(2025,1,7,19,22)
         
         # Convert Central Time to Eastern Time
         eastern_time = central_time.astimezone(pytz.timezone("US/Eastern"))

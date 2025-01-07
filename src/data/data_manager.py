@@ -152,6 +152,7 @@ class DataManager:
 
             # Convert current time to EST
             current_time = datetime.now(pytz.timezone("US/Central"))  # Get current time in CST
+            # current_time = datetime(2025,1,7,19,22)
             current_time = current_time.astimezone(self.eastern)  # Convert to EST
             print(f"Current time (ET): {current_time}")
 

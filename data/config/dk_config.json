@@ -32,5 +32,5 @@
     "ownership_weight": 1,
     "fpts_buffer": 0.98,
     "min_fpts": 278,
-    "max_ownership": 250
+    "max_ownership_sum": 250
 }

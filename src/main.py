@@ -18,7 +18,7 @@ def main():
     initialize_database()
     # Initialize DataManager for the desired site (e.g., 'dk')
     site = "dk"  # Or "fd" depending on the use case
-    process = 'main'
+    process = 'swap'
 
 
     data_manager = DataManager(site)
@@ -82,8 +82,10 @@ def main():
 if __name__ == "__main__":
     main()
 
-#TODO: complexify lateswap with the same parameters as prelock
+#------CONCEPTUALIZING------#
+#TODO: add matrix of lineups attributes (ownership, fpts, boom, etc.) in the output. 
 #TODO: add 'entry editor' style
+    ### different weights for different contests? i.e. closer to optimal in SE, more variability in optimization for MME. 
 #TODO: live ownership from contests
 #TODO: infer unlocked player ownership
 #TODO: boost for player's ceilings who are starting? seems like stok projects the starters for less min in uncertain spots. 
@@ -91,3 +93,6 @@ if __name__ == "__main__":
 #TODO: better way to dial in ownership max constraint. Right now, can use it to avoid being super chalky, but that's about it. 
 
 
+#------TEST------#
+#TODO: complexify lateswap with the same parameters as prelock
+    ###need to test after lock. Can't verify with simulated time. 
