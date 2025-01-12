@@ -18,7 +18,7 @@ def main():
     initialize_database()
     # Initialize DataManager for the desired site (e.g., 'dk')
     site = "dk"  # Or "fd" depending on the use case
-    process = 'main'
+    process = 'swap'
 
 
     data_manager = DataManager(site)
@@ -101,6 +101,7 @@ if __name__ == "__main__":
     main()
 
 #------CONCEPTUALIZING------#
+#TODO: if fpts_buffer is failing for late swap, it just pushes out lineups that it can't build with the locked players to exceed the limit i think. we need it to fail for the limit first. 
 #TODO: add 'entry editor' style
 #TODO: live ownership from contests
 #TODO: infer unlocked player ownership

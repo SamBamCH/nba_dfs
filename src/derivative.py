@@ -47,7 +47,7 @@ def main():
 
     optimizer = Optimizer(site, players, num_lineups, num_uniques, data_manager.config)
 
-    optimizer.explore_fpts_ownership_tradeoff(min_ratio=0.95, max_ratio=1, steps=50)
+    optimizer.explore_fpts_ownership_tradeoff(min_ratio=0.95, max_ratio=1, steps=250)
 
 
 if __name__ == "__main__":

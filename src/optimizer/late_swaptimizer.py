@@ -272,6 +272,7 @@ class LateSwaptimizer:
         # Save the updated lineups to a CSV file
         formatted_df.to_csv(output_csv_path, index=False)
         print(f"Optimized lineups have been written to {output_csv_path}")
+        lineups.show_lineups_overview()
         return lineups
 
 

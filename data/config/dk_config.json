@@ -17,7 +17,7 @@
     "matchup_at_least": {},
     "team_limits": {},
     "custom_correlations": {},
-    "max_team_salary": 22000,
+    "max_team_salary": 35000,
     "projection_minimum": 18,
     "min_lineup_salary": 49800,
     "minutes_min": 20,
@@ -28,42 +28,37 @@
     ]
     },
     "fpts_buffer": 0.98,
+    "max_ownership_sum": 500,
+    "ceiling_weight": 4,
+    "ownership_weight": 1,
+    "randomness_amount": 20,
     "contest_params": {
         "SE": {
-            "num_lineups": 1,
+            "num_lineups": 7,
             "num_uniques": 1,
-            "ceiling_weight": 5,
+            "ceiling_weight": 1,
             "ownership_weight": 1,
-            "min_fpts": 282,
+            "min_fpts": 268,
             "max_ownership_sum": 300,
             "randomness_amount": 0
         },
-        "3max": {
-            "num_lineups": 3,
-            "num_uniques": 2,
-            "ceiling_weight": 4,
-            "ownership_weight": 1.5,
-            "min_fpts": 278,
-            "max_ownership_sum": 280,
-            "randomness_amount": 0
-        },
         "20max": {
-            "num_lineups": 20,
-            "num_uniques": 2,
-            "ceiling_weight": 3,
+            "num_lineups": 60,
+            "num_uniques": 1,
+            "ceiling_weight": 1,
             "ownership_weight": 1,
-            "min_fpts": 278,
-            "max_ownership_sum": 275,
-            "randomness_amount": 30
+            "min_fpts": 262,
+            "max_ownership_sum": 300,
+            "randomness_amount": 40
         },
-        "150max": {
-            "num_lineups": 150,
-            "num_uniques": 2,
-            "ceiling_weight": 3,
+        "small field 20-max": {
+            "num_lineups": 60,
+            "num_uniques": 1,
+            "ceiling_weight": 1,
             "ownership_weight": 1,
-            "min_fpts": 275,
-            "max_ownership_sum": 275,
-            "randomness_amount": 50
+            "min_fpts": 265,
+            "max_ownership_sum": 300,
+            "randomness_amount": 40
         }
     }
 }

@@ -101,6 +101,9 @@ class ConstraintManager:
         self.add_salary_constraints()
         self.add_position_constraints()
         self.add_single_player_constraints()
+        self.add_global_team_salary_limit()
+        self.add_matchup_constraints()
+        self.add_team_constraints()
 
     def add_lineup_pool_constraints(self, selected_lineups, num_uniques):
         '''
@@ -134,6 +137,3 @@ class ConstraintManager:
         else: 
             print('min_fpts is none')
 
-        self.add_global_team_salary_limit()
-        self.add_matchup_constraints()
-        self.add_team_constraints()
