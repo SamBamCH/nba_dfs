@@ -161,7 +161,7 @@ class LateSwaptimizer:
             ceiling_stddev = player.boom_pct * 0.25
             ownership_stddev = player.ownership * 0.25
 
-            random_ceiling = np.random.normal(player.boom_pct, ceiling_stddev * randomness_factor)
+            random_ceiling = np.random.normal(player.fpts, ceiling_stddev * randomness_factor)
             random_ownership = np.random.normal(player.ownership, ownership_stddev * randomness_factor)
 
             # Clip them to ensure no negative ownership, no crazy negative ceiling
@@ -190,14 +190,14 @@ class LateSwaptimizer:
 
         # Solve the optimization problem again with dynamic constraints
         try:
-            self.problem.solve(plp.GLPK(msg=0))
-        except plp.PulpSolverError:
-            print(f"Error optimizing lineup {lineup['Entry ID']}. Skipping...")
-            return None
+            print(f"Solving lineup {lineup['Entry ID']} with constraints:")
+            for constraint in self.problem.constraints.values():
+                print(constraint)
 
-        # Check if the solution is valid
-        if plp.LpStatus[self.problem.status] != "Optimal":
-            print(f"Optimization failed for lineup {lineup['Entry ID']}.")
+            self.problem.solve(plp.GLPK(msg=1))  # Use msg=1 to print solver logs
+
+        except Exception as e:
+            print(f"GLPK crashed on lineup {lineup['Entry ID']}: {e}. Skipping...")
             return None
 
         # Extract the optimized lineup

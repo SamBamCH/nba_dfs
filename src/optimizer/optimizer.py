@@ -287,13 +287,24 @@ class Optimizer:
         min_fpts = self.config.get("min_fpts")
         max_ownership_sum = self.config.get("max_ownership_sum")
 
+        player_exposure_counts = {player.name: 0 for player in self.players}
+        exposure_penalty_factor = self.config.get("exposure_penalty", 0)  # Adjust this factor to control the penalty severity
+
     
         # Stage 3: Optimize subsequent lineups with added randomness
+        # Initialize player exposure counts
+        player_exposure_counts = {player: 0 for player in self.players}
+        exposure_penalty_factor = 0.1  # Adjust this factor to control the penalty severity
+
+        # Stage 3: Optimize subsequent lineups with added randomness
         for i in range(self.num_lineups):
-            if i % 2 == 0: 
-                print(i)
+            if i % 2 == 0:
+                print(f"Generating lineup {i}")
+
+            # Define a new problem for this iteration
             self.problem = LpProblem(f"Stage2_NBA_DFS_Optimization_{i}", LpMaximize)
 
+            # Add existing exclusion constraints to the problem
             for constraint in exclusion_constraints:
                 self.problem += constraint
 
@@ -304,20 +315,18 @@ class Optimizer:
             constraint_manager.add_static_constraints()
             constraint_manager.add_optional_constraints(min_fpts, max_ownership_sum)
 
+            # Initialize sampled values for ceilings and ownerships
             sampled_ceiling_values = {}
             sampled_ownership_values = {}
 
-            # Add randomness to ceiling values
+            # Add randomness to ceiling and ownership values
             for player in self.players:
-                # Example: random normal ~ (mean = player.ceiling, std ~ 1/4 of ceiling * randomness_factor)
-                # Tweak the factor as desired to not overshoot too much
                 ceiling_stddev = player.boom_pct * 0.25
                 ownership_stddev = player.ownership * 0.25
 
                 random_ceiling = np.random.normal(player.boom_pct, ceiling_stddev * randomness_factor)
                 random_ownership = np.random.normal(player.ownership, ownership_stddev * randomness_factor)
 
-                # Clip them to ensure no negative ownership, no crazy negative ceiling
                 random_ceiling = max(0.0, random_ceiling)
                 random_ownership = max(0.0, random_ownership)
 
@@ -325,17 +334,25 @@ class Optimizer:
                 sampled_ownership_values[player] = random_ownership
 
             # Scale randomized values
-            max_ownership = max(sampled_ownership_values.values(), default=1)  # Avoid division by zero
+            max_ownership = max(sampled_ownership_values.values(), default=1)
             scaled_sampled_ownership = {player: value / max_ownership for player, value in sampled_ownership_values.items()}
             max_ceiling = max(sampled_ceiling_values.values(), default=1)
             scaled_sampled_ceiling = {player: value / max_ceiling for player, value in sampled_ceiling_values.items()}
+            exposure_percentages = {
+                player: player_exposure_counts[player] / self.num_lineups
+                for player in self.players
+            }
 
+            exposure_weight = self.config.get("exposure_penalty", 0.1)  # Default exposure penalty weight
+
+            # Set objective with exposure penalty
             self.problem.setObjective(
                 lpSum(
                     (
                         ceiling_weight * scaled_sampled_ceiling[player]
                         - ownership_weight * scaled_sampled_ownership[player]
-                    ) * self.lp_variables[(player,position)]
+                        - exposure_weight * player_exposure_counts[player]
+                    ) * self.lp_variables[(player, position)]
                     for player in self.players
                     for position in player.position
                 )
@@ -352,11 +369,17 @@ class Optimizer:
                 print(f"No optimal solution for lineup {i} in Stage 2.")
                 break
 
-            # Extract the lineup and save it
+            # Extract the optimized lineup
             final_vars = [
                 key for key, var in self.lp_variables.items() if var.varValue == 1
             ]
             final_lineup = [(player, position) for player, position in final_vars]
+
+            # Update exposure counts for each player in the final lineup
+            for player, _ in final_lineup:
+                player_exposure_counts[player] += 1  # Increment the count for each player
+
+            # Save the lineup
             self.adjust_roster_for_late_swap(final_lineup)
             lineups.add_lineup(final_lineup)
 
@@ -369,6 +392,7 @@ class Optimizer:
                 self.lp_variables[(player, pos)] for player, pos in player_keys_to_exclude
             ) <= len(final_vars) - self.num_uniques
             exclusion_constraints.append(exclusion_constraint)
+
 
         lineups.show_lineups_overview()
         return lineups
